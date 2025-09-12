@@ -1,0 +1,102 @@
+package principals
+
+import (
+	"context"
+
+	"github.com/VirtueSecurity/IAMhounddog/graph"
+	"github.com/VirtueSecurity/IAMhounddog/policies"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+)
+
+func EnumerateUsers(ctx context.Context, client *iam.Client, out *graph.Output, addedPolicyNodes, addedResourceNodes map[string]bool, passRoleEdges map[string]map[string]bool) {
+	userPaginator := iam.NewListUsersPaginator(client, &iam.ListUsersInput{})
+	for userPaginator.HasMorePages() {
+		userPage, err := userPaginator.NextPage(ctx)
+		if err != nil {
+			panic(err)
+		}
+		for _, user := range userPage.Users {
+			userID := aws.ToString(user.Arn)
+			graph.AddNode(
+				out,
+				userID,
+				[]string{"AWSUser"},
+				map[string]interface{}{
+					"name":        aws.ToString(user.UserName),
+					"arn":         aws.ToString(user.Arn),
+					"displayname": aws.ToString(user.UserName),
+				},
+			)
+
+			// Managed policies on user
+			aup := iam.NewListAttachedUserPoliciesPaginator(client, &iam.ListAttachedUserPoliciesInput{
+				UserName: user.UserName,
+			})
+			for aup.HasMorePages() {
+				pg, err := aup.NextPage(ctx)
+				if err != nil {
+					panic(err)
+				}
+				for _, mp := range pg.AttachedPolicies {
+					pArn := aws.ToString(mp.PolicyArn)
+					pName := aws.ToString(mp.PolicyName)
+
+					pd, err := client.GetPolicy(ctx, &iam.GetPolicyInput{PolicyArn: &pArn})
+					if err != nil || pd.Policy == nil || pd.Policy.DefaultVersionId == nil {
+						continue
+					}
+					ver, err := client.GetPolicyVersion(ctx, &iam.GetPolicyVersionInput{
+						PolicyArn: &pArn,
+						VersionId: pd.Policy.DefaultVersionId,
+					})
+					if err != nil || ver.PolicyVersion == nil || ver.PolicyVersion.Document == nil {
+						continue
+					}
+
+					policies.AttachPolicy(out, addedPolicyNodes, addedResourceNodes, passRoleEdges, userID, pArn, pName, aws.ToString(ver.PolicyVersion.Document))
+				}
+			}
+
+			// Inline policies on user
+			lup := iam.NewListUserPoliciesPaginator(client, &iam.ListUserPoliciesInput{
+				UserName: user.UserName,
+			})
+			for lup.HasMorePages() {
+				pg, err := lup.NextPage(ctx)
+				if err != nil {
+					panic(err)
+				}
+				for _, pn := range pg.PolicyNames {
+					gup, err := client.GetUserPolicy(ctx, &iam.GetUserPolicyInput{
+						UserName:   user.UserName,
+						PolicyName: aws.String(pn),
+					})
+					if err != nil {
+						continue
+					}
+					inlineID := aws.ToString(user.Arn) + ":inline/" + pn
+					policies.AttachPolicy(out, addedPolicyNodes, addedResourceNodes, passRoleEdges, userID, inlineID, pn, aws.ToString(gup.PolicyDocument))
+				}
+			}
+
+			// User to Group edges
+			gfu := iam.NewListGroupsForUserPaginator(client, &iam.ListGroupsForUserInput{
+				UserName: user.UserName,
+			})
+			for gfu.HasMorePages() {
+				pg, err := gfu.NextPage(ctx)
+				if err != nil {
+					panic(err)
+				}
+				for _, g := range pg.Groups {
+					graph.AddEdge(out, "awsMemberOf", userID, aws.ToString(g.Arn),
+						map[string]interface{}{
+							"name": "awsMemberOf",
+						})
+				}
+			}
+		}
+	}
+}

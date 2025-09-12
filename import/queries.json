@@ -1,0 +1,62 @@
+[
+    {
+        "name": "Paths to *",
+        "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSResource)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND toLower(z.name) CONTAINS '*' RETURN p",
+        "description": "Identify all paths to the * resource"
+    },
+    {
+        "name": "Paths to IAM",
+        "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSResource)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND toLower(z.name) = 'iam' RETURN p",
+        "description": "Identify all paths to the IAM resource"
+    },
+    {
+        "name": "Paths to Principal",
+        "query": "MATCH p = allShortestPaths((n)-[*..]->(z)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND (z:AWSUser OR z:AWSRole OR z:AWSGroup OR z:AWSPrincipal) AND NOT toLower(n.name) = 'namechangeme' AND toLower(z.name) = 'namechangeme' RETURN p",
+        "description": "Identify all paths to a principal"
+    },
+    {
+        "name": "Paths from Principal",
+        "query": "MATCH p = allShortestPaths((n)-[*..]->(res:AWSResource)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND n.objectid = 'ARN:AWS:IAM::CHANGEME:USER/CHANGE' OPTIONAL MATCH rp = (res:AWSResource)-[*..]->(r) RETURN p, rp",
+        "description": "Identify all paths from a principal"
+    },
+    {
+        "name": "All Administrators",
+        "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSPolicy)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND (toLower(z.name) CONTAINS 'administratoraccess' OR toLower(z.name) CONTAINS 'poweruseraccess') RETURN p",
+        "description": "Identify all administrators"
+    },
+    {
+        "name": "Roles Attached to Services",
+        "query": "MATCH p = (:AWSResource)-[:awsCloudFormationStackRole|:awsCodeBuildProjectRole|:awsCodePipelineRole|:awsEc2InstanceRole|:awsEcsTaskRole|:awsEcsTaskExecutionRole|:awsEksClusterRole|:awsEksNodeRole|:awsLambdaInstanceRole|:awsRdsMonitoringRole|:awsRdsInstanceRole|:awsRdsClusterRole|:awsStateMachineRole]->()-[]->() RETURN p",
+        "description": "Identify all roles attached to a service"
+    },
+    {
+        "name": "Paths to Inline Policies",
+        "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSPolicy)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND z.objectid CONTAINS ':INLINE/' RETURN p",
+        "description": "Identify all paths to inline policies"
+    },
+    {
+        "name": "All Foreign Principals",
+        "query": "MATCH p = (r:AWSPrincipal)-[:awsAssumeRoleAllowed]->(z)-[*..]->(res:AWSResource) WHERE NOT toLower(z.name) CONTAINS 'aws' RETURN p",
+        "description": "Identify all foreign principals"
+    },
+    {
+        "name": "Paths to SSM",
+        "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSResource)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND toLower(z.name) = 'ssm' RETURN p",
+        "description": "Identify all paths to SSM"
+    },
+    {
+        "name": "Policies with Modify Permissions",
+        "query": "MATCH p = (n:AWSPolicy)-[r]->(z:AWSResource) WHERE toLower(type(r)) CONTAINS 'create' OR toLower(type(r)) CONTAINS 'put' OR toLower(type(r)) CONTAINS 'update' OR toLower(type(r)) CONTAINS 'add' OPTIONAL MATCH rp = allShortestPaths((v)-[*..]->(n:AWSPolicy)) WHERE (v:AWSUser OR v:AWSRole OR v:AWSGroup OR v:AWSPrincipal) RETURN p,rp",
+        "description": "Identify all paths with edges that allow you to modify resources"
+    },
+    {
+        "name": "Principals with Wildcard Conditions",
+        "query": "MATCH p = allShortestPaths((n:AWSPrincipal)-[*..]->(z:AWSResource)) WHERE n.condition CONTAINS '*' RETURN p",
+        "description": "Identify all paths available to principals with wildcard conditions"
+    },
+    {
+        "name": "Resource Relationships Excluding AWS",
+        "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSResource)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) and NOT toLower(n.name) CONTAINS 'aws' RETURN p",
+        "description": "Identify all paths for resources"
+    }
+]

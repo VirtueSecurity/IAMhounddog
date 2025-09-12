@@ -1,0 +1,46 @@
+{
+  "custom_types": {
+    "AWSUser": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "user",
+        "color": "#F4CA70"
+      }
+    },
+    "AWSGroup": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "users",
+        "color": "#FF8369"
+      }
+    },
+    "AWSRole": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "user-gear",
+        "color": "#dd42f5"
+      }
+    },
+    "AWSPrincipal": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "passport",
+        "color": "#C04EA0"
+      }
+    },
+    "AWSPolicy": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "clipboard",
+        "color": "#FFF6EB"
+      }
+    },
+    "AWSResource": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "server",
+        "color": "#42b9f5"
+      }
+    }
+  }
+}
