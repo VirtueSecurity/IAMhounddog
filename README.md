@@ -5,7 +5,8 @@ A tool to help pentesters quickly identify privileged principals and second-orde
 ![alt text](img/screenshot.png)
 
 
-<video src="img/output.mp4" controls></video>
+https://github.com/user-attachments/assets/e60db9c6-75ee-45f9-83fb-0b58f5683ceb
+
 
 ## Usage
 
