@@ -4,6 +4,9 @@ A tool to help pentesters quickly identify privileged principals and second-orde
 
 ![alt text](img/screenshot.png)
 
+
+<video src="img/output.mp4" controls></video>
+
 ## Usage
 
 1. Download and setup [BloodHound Community Edition](https://bloodhound.specterops.io/get-started/quickstart/community-edition-quickstart)
@@ -72,5 +75,17 @@ Edges link these resources together:
 - Policies are attached to resources using actions as the edges, like ec2RunInstances. * is remapped to allaccess due to the schema not liking * in edge names. 
 - Resources are attached to instance roles through edges unique to the relationship, like awsEcsTaskRole.
 
+## Credits
 
+IAMhounddog was created by Nathan Tucker and is proudly released by [Virtue Security](https://www.virtuesecurity.com/).
+
+### About Virtue Security
+
+Virtue Security is a specialized cybersecurity firm offering in-depth security testing services including:
+- Application Penetration Testing
+- Cloud Penetration Testing
+- Kubernetes Penetration Testing
+- Network Penetration Testing
+
+Visit [Virtue Security](https://www.virtuesecurity.com/) to learn more about their security services.
 
