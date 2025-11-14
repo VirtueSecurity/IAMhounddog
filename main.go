@@ -214,6 +214,9 @@ func main() {
 	fmt.Println("\tEnumerating eks")
 	services.EnumerateEKSRoles(ctx, cfg, &out, addedResourceNodes, regions)
 
+	fmt.Println("\tEnumerating s3")
+	services.EnumerateS3Buckets(ctx, cfg, &out, addedResourceNodes, addedPrincipalNodes, regions)
+
 	fmt.Println("\tEnumerating cloudformation")
 	services.EnumerateCloudFormationStackRoles(ctx, cfg, &out, addedResourceNodes, regions)
 

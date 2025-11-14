@@ -37,15 +37,16 @@ IAMhounddog identifies relationships across:
 - Attached and inline policies
 - Trust relationships, including foreign principals
 - Roles attached to the following services:
-    - CloudFormation
     - EC2
     - ECS
     - EKS
     - Lambda
     - RDS
     - Step functions    
+    - CloudFormation
     - CodeBuild
     - CodePipeline
+- S3 Buckets and Bucket Policies
 
 ## Data Model
 

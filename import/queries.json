@@ -11,7 +11,7 @@
     },
     {
         "name": "Paths to Principal",
-        "query": "MATCH p = allShortestPaths((n)-[*..]->(z)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND (z:AWSUser OR z:AWSRole OR z:AWSGroup OR z:AWSPrincipal) AND NOT toLower(n.name) = 'namechangeme' AND toLower(z.name) = 'namechangeme' RETURN p",
+        "query": "MATCH p = allShortestPaths((n)-[*..]->(z)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND (z:AWSUser OR z:AWSRole OR z:AWSGroup OR z:AWSPrincipal) AND NOT n.objectid = 'ARN:AWS:IAM::CHANGEME:USER/CHANGE' AND z.objectid = 'ARN:AWS:IAM::CHANGEME:USER/CHANGE' RETURN p",
         "description": "Identify all paths to a principal"
     },
     {
@@ -40,9 +40,14 @@
         "description": "Identify all foreign principals"
     },
     {
-        "name": "Paths to SSM",
-        "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSResource)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND toLower(z.name) = 'ssm' RETURN p",
-        "description": "Identify all paths to SSM"
+        "name": "Paths to SecretsManager",
+        "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSResource)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND toLower(z.name) = 'secretsmanager' RETURN p",
+        "description": "Identify all paths to SecretsManager"
+    },
+    {
+        "name": "Paths to Resource with Edge Restriction",
+        "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSResource)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND toLower(z.name) = 'lambda' WITH p WHERE any(r IN relationships(p) WHERE type(r) = 'lambdaAllAccess') RETURN p",
+        "description": "Identify all paths to a resource with specific edges"
     },
     {
         "name": "Policies with Modify Permissions",
@@ -51,12 +56,22 @@
     },
     {
         "name": "Principals with Wildcard Conditions",
-        "query": "MATCH p = allShortestPaths((n:AWSPrincipal)-[*..]->(z:AWSResource)) WHERE n.condition CONTAINS '*' RETURN p",
-        "description": "Identify all paths available to principals with wildcard conditions"
+        "query": "MATCH p = (n:AWSPrincipal)-[q:awsAssumeRoleAllowed]->(z:AWSRole) WHERE q.condition CONTAINS '*' RETURN p",
+        "description": "Identify all principals with wildcard conditions"
     },
     {
         "name": "Resource Relationships Excluding AWS",
         "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSResource)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) and NOT toLower(n.name) CONTAINS 'aws' RETURN p",
         "description": "Identify all paths for resources"
+    },
+    {
+        "name": "All Users",
+        "query": "MATCH p = (r:AWSUser)-[*..]->(z:AWSPolicy) RETURN p",
+        "description": "Identify all users"
+    },
+    {
+        "name": "Access to S3 Bucket",
+        "query": "MATCH p = allShortestPaths((n)-[*..]->(z)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND (z:AWSResource) AND z.objectid = 'ARN:AWS:S3:::CHANGE' RETURN p",
+        "description": "Identify all paths to an S3 bucket"
     }
 ]
