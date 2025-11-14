@@ -56,8 +56,8 @@
     },
     {
         "name": "Principals with Wildcard Conditions",
-        "query": "MATCH p = allShortestPaths((n:AWSPrincipal)-[*..]->(z:AWSResource)) WHERE n.condition CONTAINS '*' RETURN p",
-        "description": "Identify all paths available to principals with wildcard conditions"
+        "query": "MATCH p = (n:AWSPrincipal)-[q:awsAssumeRoleAllowed]->(z:AWSRole) WHERE q.condition CONTAINS '*' RETURN p",
+        "description": "Identify all principals with wildcard conditions"
     },
     {
         "name": "Resource Relationships Excluding AWS",

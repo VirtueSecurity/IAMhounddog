@@ -111,14 +111,14 @@ func AttachTrustRelationships(out *graph.Output, addedPrincipalNodes map[string]
 					} else {
 						id := "principal:" + strings.ToLower(ptype) + ":" + val
 						graph.AddNodeOnce(out, addedPrincipalNodes, id, []string{"AWSPrincipal"}, map[string]interface{}{
-							"type":      ptype,
-							"name":      val,
-							"condition": prettyJSON(st.Condition),
+							"type": ptype,
+							"name": val,
 						})
 
 						graph.AddEdge(out, "awsAssumeRoleAllowed", id, roleID,
 							map[string]interface{}{
-								"name": "awsAssumeRoleAllowed",
+								"name":      "awsAssumeRoleAllowed",
+								"condition": prettyJSON(st.Condition),
 							})
 					}
 				}
