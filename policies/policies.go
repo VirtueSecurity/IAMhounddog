@@ -10,11 +10,11 @@ import (
 
 type PolicyDocument struct {
 	Statement []struct {
-		Action    interface{}            `json:"Action"`
-		Effect    string                 `json:"Effect"`
-		Resource  interface{}            `json:"Resource,omitempty"`
-		Principal map[string]interface{} `json:"Principal,omitempty"`
-		Condition json.RawMessage        `json:"Condition,omitempty"`
+		Action    interface{}     `json:"Action"`
+		Effect    string          `json:"Effect"`
+		Resource  interface{}     `json:"Resource,omitempty"`
+		Principal interface{}     `json:"Principal,omitempty"`
+		Condition json.RawMessage `json:"Condition,omitempty"`
 	} `json:"Statement"`
 }
 
@@ -48,6 +48,7 @@ func ParsePolicyDoc(out *graph.Output, addedResourceNodes map[string]bool, passR
 		if strings.ToLower(stmt.Effect) != "allow" {
 			continue
 		}
+
 		var actions []string
 		switch a := stmt.Action.(type) {
 		case string:
@@ -59,6 +60,7 @@ func ParsePolicyDoc(out *graph.Output, addedResourceNodes map[string]bool, passR
 				}
 			}
 		}
+
 		for _, act := range actions {
 			parts := strings.SplitN(act, ":", 2)
 			svc := parts[0]
@@ -112,4 +114,64 @@ func AttachPolicy(out *graph.Output, addedPolicyNodes, addedResourceNodes map[st
 		})
 
 	ParsePolicyDoc(out, addedResourceNodes, passRoleEdges, principalID, policyArn, docStr)
+}
+
+func ParseS3PolicyDoc(out *graph.Output, addedPrincipalNodes map[string]bool, bucketArn, docStr string) {
+	var doc PolicyDocument
+
+	if err := json.Unmarshal([]byte(docStr), &doc); err != nil {
+		return
+	}
+
+	for _, stmt := range doc.Statement {
+		if strings.ToLower(stmt.Effect) != "allow" {
+			continue
+		}
+
+		var principals []string
+		switch v := stmt.Principal.(type) {
+		case string:
+			principals = append(principals, v)
+		case map[string]interface{}:
+			for _, raw := range v {
+				switch vv := raw.(type) {
+				case string:
+					principals = append(principals, vv)
+				case []interface{}:
+					for _, el := range vv {
+						if s, ok := el.(string); ok {
+							principals = append(principals, s)
+						}
+					}
+				}
+			}
+		}
+
+		var actions []string
+		switch a := stmt.Action.(type) {
+		case string:
+			actions = []string{a}
+		case []interface{}:
+			for _, act := range a {
+				if strAct, ok := act.(string); ok {
+					actions = append(actions, strAct)
+				}
+			}
+		}
+
+		for _, principal := range principals {
+			graph.AddNodeOnce(out, addedPrincipalNodes, principal, []string{"AWSPrincipal"}, map[string]interface{}{
+				"type": principal,
+				"name": principal,
+			})
+
+			for _, act := range actions {
+				edgeKind := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(act, "-", ""), ":", ""), "*", "AllAccess")
+
+				graph.AddEdge(out, edgeKind, principal, bucketArn, map[string]interface{}{
+					"name": edgeKind,
+				})
+			}
+		}
+	}
 }

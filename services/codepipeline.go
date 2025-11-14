@@ -2,21 +2,47 @@ package services
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/codepipeline"
+	cpTypes "github.com/aws/aws-sdk-go-v2/service/codepipeline/types"
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
 )
 
+func addCodePipelineArtifactStoreEdges(out *graph.Output, addedResourceNodes map[string]bool, store *cpTypes.ArtifactStore, pipelineName string) {
+	if store == nil {
+		return
+	}
+
+	if store.Type != cpTypes.ArtifactStoreTypeS3 {
+		return
+	}
+
+	bucketName := aws.ToString(store.Location)
+	if bucketName == "" {
+		return
+	}
+
+	bucketArn := fmt.Sprintf("arn:aws:s3:::%s", bucketName)
+
+	graph.AddNodeOnce(out, addedResourceNodes, bucketArn, []string{"AWSResource"}, map[string]interface{}{
+		"name":       bucketName,
+		"arn":        bucketArn,
+		"artifactOf": pipelineName,
+	})
+
+	graph.AddEdge(out, "awsCodePipelineS3ArtifactStore", "codepipeline", bucketArn, map[string]interface{}{
+		"name":      "awsCodePipelineS3ArtifactStore",
+		"bucket":    bucketName,
+		"bucketArn": bucketArn,
+		"pipeline":  pipelineName,
+	})
+}
+
 func EnumerateCodePipelineRoles(ctx context.Context, cfg aws.Config, out *graph.Output, addedResourceNodes map[string]bool, regions []string) {
 	graph.AddNodeOnce(out, addedResourceNodes, "codepipeline", []string{"AWSResource"}, map[string]interface{}{"name": "codepipeline"})
-
-	// hack, manually add a link from s3 to codepipline in case pipelines are stored in buckets that roles can edit
-	graph.AddNodeOnce(out, addedResourceNodes, "s3", []string{"AWSResource"}, map[string]interface{}{"name": "s3"})
-	graph.AddEdge(out, "awsS3BucketContainingCodePipeline", "s3", "codepipeline", map[string]interface{}{
-		"name": "awsS3BucketContainingCodePipeline",
-	})
 
 	for _, region := range regions {
 		cpconfig := codepipeline.NewFromConfig(cfg, func(o *codepipeline.Options) { o.Region = region })
@@ -38,15 +64,21 @@ func EnumerateCodePipelineRoles(ctx context.Context, cfg aws.Config, out *graph.
 					continue
 				}
 				roleArn := aws.ToString(pOut.Pipeline.RoleArn)
-				if roleArn == "" {
-					continue
+				if roleArn != "" {
+					graph.AddEdge(out, "awsCodePipelineRole", "codepipeline", roleArn, map[string]interface{}{
+						"name":     "awsCodePipelineRole",
+						"pipeline": name,
+						"region":   region,
+					})
 				}
 
-				graph.AddEdge(out, "awsCodePipelineRole", "codepipeline", roleArn, map[string]interface{}{
-					"name":     "awsCodePipelineRole",
-					"pipeline": name,
-					"region":   region,
-				})
+				if pOut.Pipeline.ArtifactStore != nil {
+					addCodePipelineArtifactStoreEdges(out, addedResourceNodes, pOut.Pipeline.ArtifactStore, name)
+				}
+
+				for _, store := range pOut.Pipeline.ArtifactStores {
+					addCodePipelineArtifactStoreEdges(out, addedResourceNodes, &store, name)
+				}
 			}
 		}
 	}
