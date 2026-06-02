@@ -1,82 +1,82 @@
 [
     {
         "name": "Paths to *",
-        "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSResource)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND toLower(z.name) CONTAINS '*' RETURN p",
+        "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSResource)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND toLower(z.name) CONTAINS '*' RETURN p LIMIT 1000",
         "description": "Identify all paths to the * resource"
     },
     {
         "name": "Paths to IAM",
-        "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSResource)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND toLower(z.name) = 'iam' RETURN p",
+        "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSResource)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND toLower(z.name) = 'iam' RETURN p LIMIT 1000",
         "description": "Identify all paths to the IAM resource"
     },
     {
         "name": "Paths to Principal",
-        "query": "MATCH p = allShortestPaths((n)-[*..]->(z)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND (z:AWSUser OR z:AWSRole OR z:AWSGroup OR z:AWSPrincipal) AND NOT n.objectid = 'ARN:AWS:IAM::CHANGEME:USER/CHANGE' AND z.objectid = 'ARN:AWS:IAM::CHANGEME:USER/CHANGE' RETURN p",
+        "query": "MATCH p = allShortestPaths((n)-[*..]->(z)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND (z:AWSUser OR z:AWSRole OR z:AWSGroup OR z:AWSPrincipal) AND NOT n.objectid = 'ARN:AWS:IAM::CHANGEME:USER/CHANGE' AND z.objectid = 'ARN:AWS:IAM::CHANGEME:USER/CHANGE' RETURN p LIMIT 1000",
         "description": "Identify all paths to a principal"
     },
     {
         "name": "Paths from Principal",
-        "query": "MATCH p = allShortestPaths((n)-[*..]->(res:AWSResource)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND n.objectid = 'ARN:AWS:IAM::CHANGEME:USER/CHANGE' OPTIONAL MATCH rp = (res:AWSResource)-[*..]->(r) RETURN p, rp",
+        "query": "MATCH p = allShortestPaths((n)-[*..]->(res:AWSResource)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND n.objectid = 'ARN:AWS:IAM::CHANGEME:USER/CHANGE' OPTIONAL MATCH rp = (res:AWSResource)-[*..]->(r) RETURN p, rp LIMIT 1000",
         "description": "Identify all paths from a principal"
     },
     {
         "name": "All Administrators",
-        "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSPolicy)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND (toLower(z.name) CONTAINS 'administratoraccess' OR toLower(z.name) CONTAINS 'poweruseraccess') RETURN p",
+        "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSPolicy)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND (toLower(z.name) CONTAINS 'administratoraccess' OR toLower(z.name) CONTAINS 'poweruseraccess') RETURN p LIMIT 1000",
         "description": "Identify all administrators"
     },
     {
         "name": "Roles Attached to Services",
-        "query": "MATCH p = (:AWSResource)-[:awsCloudFormationStackRole|:awsCodeBuildProjectRole|:awsCodePipelineRole|:awsEc2InstanceRole|:awsEcsTaskRole|:awsEcsTaskExecutionRole|:awsEksClusterRole|:awsEksNodeRole|:awsLambdaInstanceRole|:awsRdsMonitoringRole|:awsRdsInstanceRole|:awsRdsClusterRole|:awsStateMachineRole]->()-[]->() RETURN p",
+        "query": "MATCH p = (:AWSResource)-[:awsCloudFormationStackRole|:awsCodeBuildProjectRole|:awsCodePipelineRole|:awsEc2InstanceRole|:awsEcsTaskRole|:awsEcsTaskExecutionRole|:awsEksClusterRole|:awsEksNodeRole|:awsLambdaInstanceRole|:awsRdsMonitoringRole|:awsRdsInstanceRole|:awsRdsClusterRole|:awsStateMachineRole]->()-[]->() RETURN p LIMIT 1000",
         "description": "Identify all roles attached to a service"
     },
     {
         "name": "Paths to Inline Policies",
-        "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSPolicy)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND z.objectid CONTAINS ':INLINE/' RETURN p",
+        "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSPolicy)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND z.objectid CONTAINS ':INLINE/' RETURN p LIMIT 1000",
         "description": "Identify all paths to inline policies"
     },
     {
         "name": "All Foreign Principals",
-        "query": "MATCH p = (r:AWSPrincipal)-[:awsAssumeRoleAllowed]->(z)-[*..]->(res:AWSResource) WHERE NOT toLower(z.name) CONTAINS 'aws' RETURN p",
+        "query": "MATCH p = (r:AWSPrincipal)-[:awsAssumeRoleAllowed]->(z)-[*..]->(res:AWSResource) WHERE NOT toLower(z.name) CONTAINS 'aws' RETURN p LIMIT 1000",
         "description": "Identify all foreign principals"
     },
     {
         "name": "Paths to SecretsManager",
-        "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSResource)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND toLower(z.name) = 'secretsmanager' RETURN p",
+        "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSResource)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND toLower(z.name) = 'secretsmanager' RETURN p LIMIT 1000",
         "description": "Identify all paths to SecretsManager"
     },
     {
         "name": "Paths to Resource with Edge Restriction",
-        "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSResource)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND toLower(z.name) = 'lambda' WITH p WHERE any(r IN relationships(p) WHERE type(r) = 'lambdaAllAccess') RETURN p",
+        "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSResource)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND toLower(z.name) = 'lambda' WITH p WHERE any(r IN relationships(p) WHERE type(r) = 'lambdaAllAccess') RETURN p LIMIT 1000",
         "description": "Identify all paths to a resource with specific edges"
     },
     {
         "name": "Policies with Modify Permissions",
-        "query": "MATCH p = (n:AWSPolicy)-[r]->(z:AWSResource) WHERE toLower(type(r)) CONTAINS 'create' OR toLower(type(r)) CONTAINS 'put' OR toLower(type(r)) CONTAINS 'update' OR toLower(type(r)) CONTAINS 'add' OPTIONAL MATCH rp = allShortestPaths((v)-[*..]->(n:AWSPolicy)) WHERE (v:AWSUser OR v:AWSRole OR v:AWSGroup OR v:AWSPrincipal) RETURN p,rp",
+        "query": "MATCH p = (n:AWSPolicy)-[r]->(z:AWSResource) WHERE toLower(type(r)) CONTAINS 'create' OR toLower(type(r)) CONTAINS 'put' OR toLower(type(r)) CONTAINS 'update' OR toLower(type(r)) CONTAINS 'add' OPTIONAL MATCH rp = allShortestPaths((v)-[*..]->(n:AWSPolicy)) WHERE (v:AWSUser OR v:AWSRole OR v:AWSGroup OR v:AWSPrincipal) RETURN p,rp LIMIT 1000",
         "description": "Identify all paths with edges that allow you to modify resources"
     },
     {
         "name": "Principals with Wildcard Conditions",
-        "query": "MATCH p = (n:AWSPrincipal)-[q:awsAssumeRoleAllowed]->(z:AWSRole) WHERE q.condition CONTAINS '*' RETURN p",
+        "query": "MATCH p = (n:AWSPrincipal)-[q:awsAssumeRoleAllowed]->(z:AWSRole) WHERE q.condition CONTAINS '*' RETURN p LIMIT 1000",
         "description": "Identify all principals with wildcard conditions"
     },
     {
         "name": "Resource Relationships Excluding AWS",
-        "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSResource)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) and NOT toLower(n.name) CONTAINS 'aws' RETURN p",
+        "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSResource)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) and NOT toLower(n.name) CONTAINS 'aws' RETURN p LIMIT 1000",
         "description": "Identify all paths for resources"
     },
     {
         "name": "All Users",
-        "query": "MATCH p = (r:AWSUser)-[*..]->(z:AWSPolicy) RETURN p",
+        "query": "MATCH p = (r:AWSUser)-[*..]->(z:AWSPolicy) RETURN p LIMIT 1000",
         "description": "Identify all users"
     },
     {
         "name": "All Policies Attached to Role",
-        "query": "MATCH p = (r:AWSRole)-[*..]->(z:AWSPolicy) WHERE r.objectid='ARN:AWS:IAM::CHANGEME:ROLE/CHANGE' RETURN p",
+        "query": "MATCH p = (r:AWSRole)-[*..]->(z:AWSPolicy) WHERE r.objectid='ARN:AWS:IAM::CHANGEME:ROLE/CHANGE' RETURN p LIMIT 1000",
         "description": "Identify all users"
     },
     {
         "name": "Access to S3 Bucket",
-        "query": "MATCH p = allShortestPaths((n)-[*..]->(z)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND (z:AWSResource) AND z.objectid = 'ARN:AWS:S3:::CHANGE' RETURN p",
+        "query": "MATCH p = allShortestPaths((n)-[*..]->(z)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND (z:AWSResource) AND z.objectid = 'ARN:AWS:S3:::CHANGE' RETURN p LIMIT 1000",
         "description": "Identify all paths to an S3 bucket"
     }
 ]
