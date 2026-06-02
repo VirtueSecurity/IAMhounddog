@@ -70,6 +70,11 @@
         "description": "Identify all users"
     },
     {
+        "name": "All Policies Attached to Role",
+        "query": "MATCH p = (r:AWSRole)-[*..]->(z:AWSPolicy) WHERE r.objectid='ARN:AWS:IAM::CHANGEME:ROLE/CHANGE' RETURN p",
+        "description": "Identify all users"
+    },
+    {
         "name": "Access to S3 Bucket",
         "query": "MATCH p = allShortestPaths((n)-[*..]->(z)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND (z:AWSResource) AND z.objectid = 'ARN:AWS:S3:::CHANGE' RETURN p",
         "description": "Identify all paths to an S3 bucket"
