@@ -48,6 +48,41 @@ IAMhounddog identifies relationships across:
     - CodePipeline
 - S3 Buckets and Bucket Policies
 
+## AI Usage
+
+In addition to use in BloodHound, the outputted JSON file from IAMHounddog can also be used in AI pipelines. An example agent prompt is shown below:
+
+```
+Examine the iamhounddog json file. This file is available in the local directory. This iamhounddog file contains Bloodhound-compatible OpenGraph formatted data. It contains the following nodes:
+
+- AWSRole
+- AWSUser
+- AWSGroup
+- AWSPrincipal
+- AWSResource
+
+and the following edges:
+
+- Principals are linked to roles usually through awsAssumeRoleAllowed or iamPassRole edges.
+- Roles are linked to policies through awsAttachedPolicy edges.
+- Policies are attached to resources using actions as the edges, like ec2RunInstances. * is remapped to allaccess due to the schema not liking * in edge names.
+- Resources are attached to instance roles through edges unique to the relationship, like awsEcsTaskRole.
+
+Identify all AWS privilege escalation paths for all principals. This includes the ability for a role to assume another role or access resources it should not have access to. Also include second-order privilege escalation paths, such as a role writing to lambdas that have an attached role that allows for more permissions than the original role.
+
+For each privilege escalation path record:
+
+- The starting role
+- What privilege escalation path exist and what roles or data they allow access to
+- The responsible permissions documents that are misconfigured
+- Proof-of-concepts for how the escalation could occur
+- Any mitigations present
+
+Write complete findings to `privilege_escalation.md`
+```
+
+The same context window can then be queried in normal language for potential paths, like `can the EXAMPLE role access sensitive functionality`.
+
 ## Data Model
 
 The data model produced by the tool confirms to the OpenGraph schema. 
