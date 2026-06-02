@@ -2,6 +2,7 @@ package principals
 
 import (
 	"context"
+	"net/url"
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
 	"github.com/VirtueSecurity/IAMhounddog/policies"
@@ -19,6 +20,12 @@ func EnumerateRoles(ctx context.Context, client *iam.Client, out *graph.Output, 
 		}
 		for _, role := range rolePage.Roles {
 			roleID := aws.ToString(role.Arn)
+			trustPolicy := ""
+			if role.AssumeRolePolicyDocument != nil && *role.AssumeRolePolicyDocument != "" {
+				if decoded, err := url.QueryUnescape(*role.AssumeRolePolicyDocument); err == nil {
+					trustPolicy = decoded
+				}
+			}
 			graph.AddNode(
 				out,
 				roleID,
@@ -27,6 +34,7 @@ func EnumerateRoles(ctx context.Context, client *iam.Client, out *graph.Output, 
 					"name":        aws.ToString(role.RoleName),
 					"arn":         aws.ToString(role.Arn),
 					"displayname": aws.ToString(role.RoleName),
+					"trustPolicy": trustPolicy,
 				},
 			)
 

@@ -79,6 +79,7 @@ func sendSignedRequest(url string, method string, uri string, keyid string, keyt
 func main() {
 	profile := flag.String("profile", "", "(Optional) AWS profile to use (uses env vars if not provided)")
 	regionsFlag := flag.String("regions", "", "(Optional) Comma-separated list of AWS regions (tries all regions if not provided). Use -regions describe to use AWS described regions enabled for the account.")
+	outputFlag := flag.String("output", "output.json", "(Optional) Output file name.")
 	setupFlag := flag.Bool("setup", false, "(Optional) Enter setup mode. Used with the -url, -token, and -id parameters. Requires API key for BloodHound.")
 	urlFlag := flag.String("url", "", "(Optional) Used with setup mode. Url for BloodHound instance. Use -url http://localhost:8080")
 	keyIDFlag := flag.String("id", "", "(Optional) Used with setup mode. Key ID from create token.")
@@ -227,7 +228,7 @@ func main() {
 	services.EnumerateCodePipelineRoles(ctx, cfg, &out, addedResourceNodes, regions)
 
 	fmt.Println("Creating graph")
-	file, err := os.Create("output.json")
+	file, err := os.Create(*outputFlag)
 	if err != nil {
 		panic(err)
 	}
