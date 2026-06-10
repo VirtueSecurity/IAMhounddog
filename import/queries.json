@@ -11,7 +11,7 @@
     },
     {
         "name": "Paths to Principal",
-        "query": "MATCH p = allShortestPaths((n)-[*..]->(z)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND (z:AWSUser OR z:AWSRole OR z:AWSGroup OR z:AWSPrincipal) AND NOT n.objectid = 'ARN:AWS:IAM::CHANGEME:USER/CHANGE' AND z.objectid = 'ARN:AWS:IAM::CHANGEME:USER/CHANGE' RETURN p LIMIT 1000",
+        "query": "MATCH p = allShortestPaths((n)-[*..]->(z)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND (z:AWSUser OR z:AWSRole OR z:AWSGroup OR z:AWSPrincipal) AND n<>z AND z.objectid = 'ARN:AWS:IAM::CHANGEME:ROLE/CHANGE' RETURN p LIMIT 1000",
         "description": "Identify all paths to a principal"
     },
     {
