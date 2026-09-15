@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 )
 
-func EnumerateGroups(ctx context.Context, client *iam.Client, out *graph.Output, addedPolicyNodes, addedResourceNodes map[string]bool, passRoleEdges map[string]map[string]bool) {
+func EnumerateGroups(ctx context.Context, client *iam.Client, out *graph.Output, addedPolicyNodes, addedResourceNodes map[string]bool, policyDocs map[string]string, passRoleEdges map[string]map[string]bool) {
 	groupPaginator := iam.NewListGroupsPaginator(client, &iam.ListGroupsInput{})
 	for groupPaginator.HasMorePages() {
 		groupPage, err := groupPaginator.NextPage(ctx)
@@ -39,24 +39,7 @@ func EnumerateGroups(ctx context.Context, client *iam.Client, out *graph.Output,
 				if err != nil {
 					panic(err)
 				}
-				for _, mp := range pg.AttachedPolicies {
-					pArn := aws.ToString(mp.PolicyArn)
-					pName := aws.ToString(mp.PolicyName)
-
-					pd, err := client.GetPolicy(ctx, &iam.GetPolicyInput{PolicyArn: &pArn})
-					if err != nil || pd.Policy == nil || pd.Policy.DefaultVersionId == nil {
-						continue
-					}
-					ver, err := client.GetPolicyVersion(ctx, &iam.GetPolicyVersionInput{
-						PolicyArn: &pArn,
-						VersionId: pd.Policy.DefaultVersionId,
-					})
-					if err != nil || ver.PolicyVersion == nil || ver.PolicyVersion.Document == nil {
-						continue
-					}
-
-					policies.AttachPolicy(out, addedPolicyNodes, addedResourceNodes, passRoleEdges, groupID, pArn, pName, aws.ToString(ver.PolicyVersion.Document))
-				}
+				attachManagedPolicies(ctx, client, out, addedPolicyNodes, addedResourceNodes, policyDocs, passRoleEdges, groupID, pg.AttachedPolicies)
 			}
 
 			// Inline policies on group

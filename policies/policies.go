@@ -42,7 +42,7 @@ func resourcesToStrings(res interface{}) []string {
 	}
 }
 
-func ParsePolicyDoc(out *graph.Output, addedResourceNodes map[string]bool, passRoleEdges map[string]map[string]bool, principalID, policyID string, docStr string) {
+func ParsePolicyDoc(out *graph.Output, addedResourceNodes map[string]bool, passRoleEdges map[string]map[string]bool, principalID, policyID string, docStr string, emitActionEdges bool) {
 	var doc PolicyDocument
 
 	if err := json.Unmarshal([]byte(docStr), &doc); err != nil {
@@ -72,14 +72,16 @@ func ParsePolicyDoc(out *graph.Output, addedResourceNodes map[string]bool, passR
 			if svc == "" {
 				svc = "*"
 			}
-			graph.AddNodeOnce(out, addedResourceNodes, svc, []string{"AWSResource"}, map[string]interface{}{"name": svc})
-
 			edgeKind := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(act, "-", ""), ":", ""), "*", "AllAccess")
 
-			graph.AddEdge(out, edgeKind, policyID, svc,
-				map[string]interface{}{
-					"name": edgeKind,
-				})
+			if emitActionEdges {
+				graph.AddNodeOnce(out, addedResourceNodes, svc, []string{"AWSResource"}, map[string]interface{}{"name": svc})
+
+				graph.AddEdge(out, edgeKind, policyID, svc,
+					map[string]interface{}{
+						"name": edgeKind,
+					})
+			}
 
 			//special logic for passrole to create an edge from principal to role that can be passed
 			if edgeKind == "iamPassRole" {
@@ -103,7 +105,7 @@ func AttachPolicy(out *graph.Output, addedPolicyNodes, addedResourceNodes map[st
 		return
 	}
 
-	graph.AddNodeOnce(
+	firstSighting := graph.AddNodeOnce(
 		out,
 		addedPolicyNodes,
 		policyArn,
@@ -118,7 +120,7 @@ func AttachPolicy(out *graph.Output, addedPolicyNodes, addedResourceNodes map[st
 			"name": "awsAttachedPolicy",
 		})
 
-	ParsePolicyDoc(out, addedResourceNodes, passRoleEdges, principalID, policyArn, docStr)
+	ParsePolicyDoc(out, addedResourceNodes, passRoleEdges, principalID, policyArn, docStr, firstSighting)
 }
 
 func ParseS3PolicyDoc(out *graph.Output, addedPrincipalNodes map[string]bool, bucketArn, docStr string) {

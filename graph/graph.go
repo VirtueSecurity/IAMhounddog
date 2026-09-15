@@ -34,14 +34,16 @@ func AddNode(out *Output, id string, kinds []string, props map[string]interface{
 	})
 }
 
-func AddNodeOnce(out *Output, set map[string]bool, id string, kinds []string, props map[string]interface{}) {
+
+func AddNodeOnce(out *Output, set map[string]bool, id string, kinds []string, props map[string]interface{}) bool {
 	if set[id] {
-		return
+		return false
 	}
 
 	AddNode(out, id, kinds, props)
 
 	set[id] = true
+	return true
 }
 
 func AddEdge(out *Output, kind, start, end string, props map[string]interface{}) {

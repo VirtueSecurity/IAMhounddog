@@ -180,19 +180,20 @@ func main() {
 	addedPolicyNodes := make(map[string]bool)
 	addedResourceNodes := make(map[string]bool)
 	addedPrincipalNodes := make(map[string]bool)
+	policyDocs := make(map[string]string)
 	passRoleEdges := make(map[string]map[string]bool)
 
 	out := graph.Output{Graph: graph.Graph{Nodes: []graph.Node{}, Edges: []graph.Edge{}}}
 
 	if !*onlyServicesFlag {
 		fmt.Println("Enumerating roles")
-		principals.EnumerateRoles(ctx, client, &out, addedPolicyNodes, addedResourceNodes, passRoleEdges)
+		principals.EnumerateRoles(ctx, client, &out, addedPolicyNodes, addedResourceNodes, policyDocs, passRoleEdges)
 
 		fmt.Println("Enumerating users")
-		principals.EnumerateUsers(ctx, client, &out, addedPolicyNodes, addedResourceNodes, passRoleEdges)
+		principals.EnumerateUsers(ctx, client, &out, addedPolicyNodes, addedResourceNodes, policyDocs, passRoleEdges)
 
 		fmt.Println("Enumerating groups")
-		principals.EnumerateGroups(ctx, client, &out, addedPolicyNodes, addedResourceNodes, passRoleEdges)
+		principals.EnumerateGroups(ctx, client, &out, addedPolicyNodes, addedResourceNodes, policyDocs, passRoleEdges)
 
 		// Need to do this here in case a role trusts a role and the role hasn't been created yet during the first loop
 		fmt.Println("Enumerating trust relationships")
