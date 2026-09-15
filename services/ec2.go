@@ -29,10 +29,36 @@ func ec2NameTag(tags []ec2types.Tag) string {
 	return ""
 }
 
+func instanceProfileRoles(ctx context.Context, client *iam.Client, cache map[string][]string, region, profileName string) []string {
+	if roles, cached := cache[profileName]; cached {
+		return roles
+	}
+
+	var roles []string
+
+	resp, err := client.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{
+		InstanceProfileName: aws.String(profileName),
+	})
+	if err != nil {
+		warn("ec2", "GetInstanceProfile", region, err)
+	} else if resp.InstanceProfile != nil {
+		for _, r := range resp.InstanceProfile.Roles {
+			if arn := aws.ToString(r.Arn); arn != "" {
+				roles = append(roles, arn)
+			}
+		}
+	}
+
+	cache[profileName] = roles
+	return roles
+}
+
 func EnumerateEC2InstanceRoles(ctx context.Context, cfg aws.Config, out *graph.Output, addedResourceNodes map[string]bool, regions []string) {
 	graph.AddNodeOnce(out, addedResourceNodes, "ec2", []string{"AWSResource"}, map[string]interface{}{"name": "ec2"})
 
 	iamclient := iam.NewFromConfig(cfg)
+
+	profileRoles := make(map[string][]string)
 
 	for _, region := range regions {
 		ec2config := ec2.NewFromConfig(cfg, func(o *ec2.Options) { o.Region = region })
@@ -55,25 +81,10 @@ func EnumerateEC2InstanceRoles(ctx context.Context, cfg aws.Config, out *graph.O
 					if profileName == "" {
 						continue
 					}
-					profileResp, err := iamclient.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{
-						InstanceProfileName: aws.String(profileName),
-					})
-					if err != nil {
-						warn("ec2", "GetInstanceProfile", region, err)
-						continue
-					}
-					if profileResp.InstanceProfile == nil || len(profileResp.InstanceProfile.Roles) == 0 {
-						continue
-					}
-
 					instID := aws.ToString(inst.InstanceId)
 					instName := ec2NameTag(inst.Tags)
 
-					for _, r := range profileResp.InstanceProfile.Roles {
-						roleArn := aws.ToString(r.Arn)
-						if roleArn == "" {
-							continue
-						}
+					for _, roleArn := range instanceProfileRoles(ctx, iamclient, profileRoles, region, profileName) {
 						graph.AddEdge(out, "awsEc2InstanceRole", "ec2", roleArn,
 							map[string]interface{}{
 								"name":        "awsEc2InstanceRole",
