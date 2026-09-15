@@ -19,6 +19,7 @@ func EnumerateRDSRoles(ctx context.Context, cfg aws.Config, out *graph.Output, a
 		for instPager.HasMorePages() {
 			page, err := instPager.NextPage(ctx)
 			if err != nil {
+				warn("rds", "DescribeDBInstances", region, err)
 				break
 			}
 			for _, inst := range page.DBInstances {
@@ -56,6 +57,7 @@ func EnumerateRDSRoles(ctx context.Context, cfg aws.Config, out *graph.Output, a
 		for clPager.HasMorePages() {
 			page, err := clPager.NextPage(ctx)
 			if err != nil {
+				warn("rds", "DescribeDBClusters", region, err)
 				break
 			}
 			for _, cl := range page.DBClusters {

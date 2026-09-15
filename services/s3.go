@@ -40,6 +40,7 @@ func bucketRegion(ctx context.Context, cache *s3ClientCache, b s3types.Bucket, f
 		Bucket: b.Name,
 	})
 	if err != nil {
+		warn("s3", "GetBucketLocation", "", err)
 		return fallback
 	}
 
@@ -61,6 +62,7 @@ func EnumerateS3Buckets(ctx context.Context, cfg aws.Config, out *graph.Output, 
 
 	buckets, err := cache.get(baseRegion).ListBuckets(ctx, &s3.ListBucketsInput{})
 	if err != nil {
+		warn("s3", "ListBuckets", baseRegion, err)
 		return
 	}
 
@@ -98,7 +100,14 @@ func EnumerateS3Buckets(ctx context.Context, cfg aws.Config, out *graph.Output, 
 		policy, err := cache.get(region).GetBucketPolicy(ctx, &s3.GetBucketPolicyInput{
 			Bucket: aws.String(bucketName),
 		})
-		if err != nil || policy.Policy == nil {
+		if err != nil {
+			// A bucket with no policy attached is normal, not a failure.
+			if errorCode(err) != "NoSuchBucketPolicy" {
+				warn("s3", "GetBucketPolicy", region, err)
+			}
+			continue
+		}
+		if policy.Policy == nil {
 			continue
 		}
 

@@ -3,9 +3,9 @@ package services
 import (
 	"context"
 
+	"github.com/VirtueSecurity/IAMhounddog/graph"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
-	"github.com/VirtueSecurity/IAMhounddog/graph"
 )
 
 func EnumerateEKSRoles(ctx context.Context, cfg aws.Config, out *graph.Output, addedResourceNodes map[string]bool, regions []string) {
@@ -18,10 +18,14 @@ func EnumerateEKSRoles(ctx context.Context, cfg aws.Config, out *graph.Output, a
 		for clPager.HasMorePages() {
 			clPage, err := clPager.NextPage(ctx)
 			if err != nil {
+				warn("eks", "ListClusters", region, err)
 				break
 			}
 			for _, clusterName := range clPage.Clusters {
 				clOut, err := eksconfig.DescribeCluster(ctx, &eks.DescribeClusterInput{Name: aws.String(clusterName)})
+				if err != nil {
+					warn("eks", "DescribeCluster", region, err)
+				}
 				if err == nil && clOut.Cluster != nil {
 					roleArn := aws.ToString(clOut.Cluster.RoleArn)
 					if roleArn != "" {
@@ -39,14 +43,19 @@ func EnumerateEKSRoles(ctx context.Context, cfg aws.Config, out *graph.Output, a
 				for ngPager.HasMorePages() {
 					ngPage, err := ngPager.NextPage(ctx)
 					if err != nil {
-						continue
+						warn("eks", "ListNodegroups", region, err)
+						break
 					}
 					for _, ngName := range ngPage.Nodegroups {
 						ngOut, err := eksconfig.DescribeNodegroup(ctx, &eks.DescribeNodegroupInput{
 							ClusterName:   aws.String(clusterName),
 							NodegroupName: aws.String(ngName),
 						})
-						if err != nil || ngOut.Nodegroup == nil {
+						if err != nil {
+							warn("eks", "DescribeNodegroup", region, err)
+							continue
+						}
+						if ngOut.Nodegroup == nil {
 							continue
 						}
 						nodeRole := aws.ToString(ngOut.Nodegroup.NodeRole)

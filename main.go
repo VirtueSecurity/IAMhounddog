@@ -231,6 +231,8 @@ func main() {
 
 		fmt.Println("\tEnumerating codepipeline")
 		services.EnumerateCodePipelineRoles(ctx, cfg, &out, addedResourceNodes, regions)
+
+		services.FlushWarnings()
 	}
 
 	fmt.Println("Creating graph")

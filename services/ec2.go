@@ -41,6 +41,7 @@ func EnumerateEC2InstanceRoles(ctx context.Context, cfg aws.Config, out *graph.O
 		for pager.HasMorePages() {
 			page, err := pager.NextPage(ctx)
 			if err != nil {
+				warn("ec2", "DescribeInstances", region, err)
 				break
 			}
 			for _, res := range page.Reservations {
@@ -57,7 +58,11 @@ func EnumerateEC2InstanceRoles(ctx context.Context, cfg aws.Config, out *graph.O
 					profileResp, err := iamclient.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{
 						InstanceProfileName: aws.String(profileName),
 					})
-					if err != nil || profileResp.InstanceProfile == nil || len(profileResp.InstanceProfile.Roles) == 0 {
+					if err != nil {
+						warn("ec2", "GetInstanceProfile", region, err)
+						continue
+					}
+					if profileResp.InstanceProfile == nil || len(profileResp.InstanceProfile.Roles) == 0 {
 						continue
 					}
 

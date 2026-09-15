@@ -48,13 +48,18 @@ func EnumerateCloudFormationStackRoles(ctx context.Context, cfg aws.Config, out 
 		for pager.HasMorePages() {
 			page, err := pager.NextPage(ctx)
 			if err != nil {
+				warn("cloudformation", "ListStacks", region, err)
 				break
 			}
 			for _, s := range page.StackSummaries {
 				desc, err := cfconfig.DescribeStacks(ctx, &cfn.DescribeStacksInput{
 					StackName: s.StackName,
 				})
-				if err != nil || len(desc.Stacks) == 0 {
+				if err != nil {
+					warn("cloudformation", "DescribeStacks", region, err)
+					continue
+				}
+				if len(desc.Stacks) == 0 {
 					continue
 				}
 				st := desc.Stacks[0]
@@ -76,6 +81,7 @@ func EnumerateCloudFormationStackRoles(ctx context.Context, cfg aws.Config, out 
 				for resPager.HasMorePages() {
 					resPage, err := resPager.NextPage(ctx)
 					if err != nil {
+						warn("cloudformation", "ListStackResources", region, err)
 						break
 					}
 

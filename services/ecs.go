@@ -24,6 +24,7 @@ func EnumerateECSTaskRoles(ctx context.Context, cfg aws.Config, out *graph.Outpu
 		for pager.HasMorePages() {
 			page, err := pager.NextPage(ctx)
 			if err != nil {
+				warn("ecs", "ListTaskDefinitions", region, err)
 				break
 			}
 			for _, tdArn := range page.TaskDefinitionArns {
@@ -31,7 +32,11 @@ func EnumerateECSTaskRoles(ctx context.Context, cfg aws.Config, out *graph.Outpu
 					TaskDefinition: aws.String(tdArn),
 					Include:        []ecstypes.TaskDefinitionField{ecstypes.TaskDefinitionFieldTags},
 				})
-				if err != nil || desc.TaskDefinition == nil {
+				if err != nil {
+					warn("ecs", "DescribeTaskDefinition", region, err)
+					continue
+				}
+				if desc.TaskDefinition == nil {
 					continue
 				}
 				td := desc.TaskDefinition

@@ -19,13 +19,18 @@ func EnumerateStepFunctionRoles(ctx context.Context, cfg aws.Config, out *graph.
 		for pager.HasMorePages() {
 			page, err := pager.NextPage(ctx)
 			if err != nil {
+				warn("states", "ListStateMachines", region, err)
 				break
 			}
 			for _, sm := range page.StateMachines {
 				desc, err := sfconfig.DescribeStateMachine(ctx, &sfn.DescribeStateMachineInput{
 					StateMachineArn: sm.StateMachineArn,
 				})
-				if err != nil || desc == nil {
+				if err != nil {
+					warn("states", "DescribeStateMachine", region, err)
+					continue
+				}
+				if desc == nil {
 					continue
 				}
 

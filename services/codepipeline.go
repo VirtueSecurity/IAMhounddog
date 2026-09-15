@@ -51,6 +51,7 @@ func EnumerateCodePipelineRoles(ctx context.Context, cfg aws.Config, out *graph.
 		for pager.HasMorePages() {
 			page, err := pager.NextPage(ctx)
 			if err != nil {
+				warn("codepipeline", "ListPipelines", region, err)
 				break
 			}
 			for _, summary := range page.Pipelines {
@@ -60,7 +61,11 @@ func EnumerateCodePipelineRoles(ctx context.Context, cfg aws.Config, out *graph.
 				}
 
 				pOut, err := cpconfig.GetPipeline(ctx, &codepipeline.GetPipelineInput{Name: aws.String(name)})
-				if err != nil || pOut.Pipeline == nil {
+				if err != nil {
+					warn("codepipeline", "GetPipeline", region, err)
+					continue
+				}
+				if pOut.Pipeline == nil {
 					continue
 				}
 				roleArn := aws.ToString(pOut.Pipeline.RoleArn)

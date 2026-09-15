@@ -21,6 +21,7 @@ func EnumerateCodeBuildProjectRoles(ctx context.Context, cfg aws.Config, out *gr
 		for pager.HasMorePages() {
 			page, err := pager.NextPage(ctx)
 			if err != nil {
+				warn("codebuild", "ListProjects", region, err)
 				break
 			}
 			names = append(names, page.Projects...)
@@ -37,6 +38,7 @@ func EnumerateCodeBuildProjectRoles(ctx context.Context, cfg aws.Config, out *gr
 			})
 
 			if err != nil {
+				warn("codebuild", "BatchGetProjects", region, err)
 				continue
 			}
 			for _, proj := range bg.Projects {

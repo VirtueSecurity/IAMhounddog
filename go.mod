@@ -36,5 +36,5 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/iam v1.45.0
 	github.com/aws/aws-sdk-go-v2/service/lambda v1.75.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.90.2
-	github.com/aws/smithy-go v1.23.2 // indirect
+	github.com/aws/smithy-go v1.23.2
 )
