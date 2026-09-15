@@ -34,7 +34,6 @@ func AddNode(out *Output, id string, kinds []string, props map[string]interface{
 	})
 }
 
-
 func AddNodeOnce(out *Output, set map[string]bool, id string, kinds []string, props map[string]interface{}) bool {
 	if set[id] {
 		return false

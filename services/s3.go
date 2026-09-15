@@ -54,6 +54,56 @@ func bucketRegion(ctx context.Context, cache *s3ClientCache, b s3types.Bucket, f
 	}
 }
 
+type iacBucket struct {
+	tool    string                 
+	content string                 
+	hub     string                 
+	edge    string                 
+	match   func(name string) bool 
+}
+
+var iacBuckets = []iacBucket{
+	{
+		tool:    "terraform",
+		content: "state",
+		match: func(n string) bool {
+			return strings.Contains(n, "tfstate") ||
+				strings.Contains(n, "tf-state") ||
+				strings.Contains(n, "terraform-state") ||
+				strings.Contains(n, "terraformstate")
+		},
+	},
+	{
+		tool:    "cdk",
+		content: "assets",
+		match: func(n string) bool {
+			return (strings.HasPrefix(n, "cdk-") && strings.Contains(n, "-assets-")) ||
+				strings.Contains(n, "cdktoolkit-stagingbucket")
+		},
+	},
+	{
+		tool:    "cloudformation",
+		content: "templates",
+		hub:  "cloudformation",
+		edge: "awsCloudFormationTemplateBucket",
+		match: func(n string) bool {
+			return strings.HasPrefix(n, "cf-templates-")
+		},
+	},
+}
+
+func classifyIaCBucket(bucketName string) *iacBucket {
+	lower := strings.ToLower(bucketName)
+
+	for i := range iacBuckets {
+		if iacBuckets[i].match(lower) {
+			return &iacBuckets[i]
+		}
+	}
+
+	return nil
+}
+
 func EnumerateS3Buckets(ctx context.Context, cfg aws.Config, out *graph.Output, addedResourceNodes map[string]bool, addedPrincipalNodes map[string]bool, regions []string) {
 	graph.AddNodeOnce(out, addedResourceNodes, "s3", []string{"AWSResource"}, map[string]interface{}{"name": "s3"})
 
@@ -79,11 +129,19 @@ func EnumerateS3Buckets(ctx context.Context, cfg aws.Config, out *graph.Output, 
 
 		region := bucketRegion(ctx, cache, b, baseRegion)
 
-		graph.AddNodeOnce(out, addedResourceNodes, bucketArn, []string{"AWSResource"}, map[string]interface{}{
+		props := map[string]interface{}{
 			"name":   bucketName,
 			"arn":    bucketArn,
 			"region": region,
-		})
+		}
+
+		iac := classifyIaCBucket(bucketName)
+		if iac != nil {
+			props["iacTool"] = iac.tool
+			props["iacContent"] = iac.content
+		}
+
+		graph.AddNodeOnce(out, addedResourceNodes, bucketArn, []string{"AWSResource"}, props)
 
 		graph.AddEdge(out, "awsS3Bucket", "s3", bucketArn, map[string]interface{}{
 			"name":   "awsS3Bucket",
@@ -91,9 +149,15 @@ func EnumerateS3Buckets(ctx context.Context, cfg aws.Config, out *graph.Output, 
 			"region": region,
 		})
 
-		if strings.Contains(bucketName, "-tf-state") {
-			graph.AddEdge(out, "awsCloudFormationS3Bucket", "cloudformation", bucketArn, map[string]interface{}{
-				"name": "awsCloudFormationS3Bucket",
+		if iac != nil && iac.hub != "" {
+			graph.AddNodeOnce(out, addedResourceNodes, iac.hub, []string{"AWSResource"}, map[string]interface{}{
+				"name": iac.hub,
+			})
+
+			graph.AddEdge(out, iac.edge, iac.hub, bucketArn, map[string]interface{}{
+				"name":   iac.edge,
+				"bucket": bucketName,
+				"region": region,
 			})
 		}
 
