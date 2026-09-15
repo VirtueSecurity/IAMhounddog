@@ -8,14 +8,34 @@ import (
 	"github.com/VirtueSecurity/IAMhounddog/graph"
 )
 
+type Statement struct {
+	Action    interface{}     `json:"Action"`
+	Effect    string          `json:"Effect"`
+	Resource  interface{}     `json:"Resource,omitempty"`
+	Principal interface{}     `json:"Principal,omitempty"`
+	Condition json.RawMessage `json:"Condition,omitempty"`
+}
+
+type StatementList []Statement
+
+func (l *StatementList) UnmarshalJSON(data []byte) error {
+	var list []Statement
+	if err := json.Unmarshal(data, &list); err == nil {
+		*l = list
+		return nil
+	}
+
+	var single Statement
+	if err := json.Unmarshal(data, &single); err != nil {
+		return err
+	}
+
+	*l = StatementList{single}
+	return nil
+}
+
 type PolicyDocument struct {
-	Statement []struct {
-		Action    interface{}     `json:"Action"`
-		Effect    string          `json:"Effect"`
-		Resource  interface{}     `json:"Resource,omitempty"`
-		Principal interface{}     `json:"Principal,omitempty"`
-		Condition json.RawMessage `json:"Condition,omitempty"`
-	} `json:"Statement"`
+	Statement StatementList `json:"Statement"`
 }
 
 // QueryUnescape decodes '+' to a space, so use PathUnescape instead
