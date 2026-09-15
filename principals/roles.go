@@ -2,7 +2,6 @@ package principals
 
 import (
 	"context"
-	"net/url"
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
 	"github.com/VirtueSecurity/IAMhounddog/policies"
@@ -22,7 +21,7 @@ func EnumerateRoles(ctx context.Context, client *iam.Client, out *graph.Output, 
 			roleID := aws.ToString(role.Arn)
 			trustPolicy := ""
 			if role.AssumeRolePolicyDocument != nil && *role.AssumeRolePolicyDocument != "" {
-				if decoded, err := url.QueryUnescape(*role.AssumeRolePolicyDocument); err == nil {
+				if decoded, err := policies.DecodePolicyDocument(*role.AssumeRolePolicyDocument); err == nil {
 					trustPolicy = decoded
 				}
 			}

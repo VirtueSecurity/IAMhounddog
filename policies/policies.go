@@ -18,6 +18,11 @@ type PolicyDocument struct {
 	} `json:"Statement"`
 }
 
+// QueryUnescape decodes '+' to a space, so use PathUnescape instead
+func DecodePolicyDocument(encoded string) (string, error) {
+	return url.PathUnescape(encoded)
+}
+
 func resourcesToStrings(res interface{}) []string {
 	switch v := res.(type) {
 	case string:
@@ -93,7 +98,7 @@ func ParsePolicyDoc(out *graph.Output, addedResourceNodes map[string]bool, passR
 }
 
 func AttachPolicy(out *graph.Output, addedPolicyNodes, addedResourceNodes map[string]bool, passRoleEdges map[string]map[string]bool, principalID, policyArn, policyName string, encodedDoc string) {
-	docStr, err := url.QueryUnescape(encodedDoc)
+	docStr, err := DecodePolicyDocument(encodedDoc)
 	if err != nil {
 		return
 	}

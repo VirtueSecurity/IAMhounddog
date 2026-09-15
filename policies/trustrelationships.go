@@ -3,7 +3,6 @@ package policies
 import (
 	"bytes"
 	"encoding/json"
-	"net/url"
 	"strings"
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
@@ -68,7 +67,7 @@ func AttachTrustRelationships(out *graph.Output, addedPrincipalNodes map[string]
 	if encodedDoc == nil || *encodedDoc == "" {
 		return
 	}
-	docStr, err := url.QueryUnescape(*encodedDoc)
+	docStr, err := DecodePolicyDocument(*encodedDoc)
 	if err != nil {
 		return
 	}
