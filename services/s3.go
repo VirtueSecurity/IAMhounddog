@@ -55,11 +55,11 @@ func bucketRegion(ctx context.Context, cache *s3ClientCache, b s3types.Bucket, f
 }
 
 type iacBucket struct {
-	tool    string                 
-	content string                 
-	hub     string                 
-	edge    string                 
-	match   func(name string) bool 
+	tool    string
+	content string
+	hub     string
+	edge    string
+	match   func(name string) bool
 }
 
 var iacBuckets = []iacBucket{
@@ -84,8 +84,8 @@ var iacBuckets = []iacBucket{
 	{
 		tool:    "cloudformation",
 		content: "templates",
-		hub:  "cloudformation",
-		edge: "awsCloudFormationTemplateBucket",
+		hub:     "cloudformation",
+		edge:    "awsCloudFormationTemplateBucket",
 		match: func(n string) bool {
 			return strings.HasPrefix(n, "cf-templates-")
 		},
