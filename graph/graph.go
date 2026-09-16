@@ -25,7 +25,7 @@ type Graph struct {
 }
 
 type Output struct {
-	Graph Graph `json:"graph"`
+	Graph Graph          `json:"graph"`
 	index map[string]int `json:"-"`
 }
 
