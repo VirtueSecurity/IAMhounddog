@@ -140,7 +140,11 @@ func main() {
 				},
 			})
 
-			if err == nil && len(resp.Regions) > 0 {
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "[!] -regions describe failed, falling back to us-east-1: %v\n", err)
+			} else if len(resp.Regions) == 0 {
+				fmt.Fprintln(os.Stderr, "[!] -regions describe returned no regions, falling back to us-east-1")
+			} else {
 				for _, r := range resp.Regions {
 					if rn := aws.ToString(r.RegionName); rn != "" {
 						regions = append(regions, rn)
