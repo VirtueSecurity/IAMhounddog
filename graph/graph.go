@@ -35,7 +35,28 @@ func AddNode(out *Output, id string, kinds []string, props map[string]interface{
 	}
 
 	if i, seen := out.index[id]; seen {
-		mergeNode(&out.Graph.Nodes[i], kinds, props)
+		// merge kinds and properties when node already exists
+		n := &out.Graph.Nodes[i]
+
+		for _, k := range kinds {
+			if !slices.Contains(n.Kinds, k) {
+				n.Kinds = append(n.Kinds, k)
+			}
+		}
+
+		if len(props) > 0 {
+			if n.Properties == nil {
+				n.Properties = make(map[string]interface{}, len(props))
+			}
+
+			for k, v := range props {
+				if existing, ok := n.Properties[k]; ok && existing != nil && existing != "" {
+					continue
+				}
+				n.Properties[k] = v
+			}
+		}
+
 		return false
 	}
 
@@ -46,29 +67,6 @@ func AddNode(out *Output, id string, kinds []string, props map[string]interface{
 	})
 	out.index[id] = len(out.Graph.Nodes) - 1
 	return true
-}
-
-func mergeNode(n *Node, kinds []string, props map[string]interface{}) {
-	for _, k := range kinds {
-		if !slices.Contains(n.Kinds, k) {
-			n.Kinds = append(n.Kinds, k)
-		}
-	}
-
-	if len(props) == 0 {
-		return
-	}
-
-	if n.Properties == nil {
-		n.Properties = make(map[string]interface{}, len(props))
-	}
-
-	for k, v := range props {
-		if existing, ok := n.Properties[k]; ok && existing != nil && existing != "" {
-			continue
-		}
-		n.Properties[k] = v
-	}
 }
 
 func HasAnyKind(out *Output, id string, kinds ...string) bool {

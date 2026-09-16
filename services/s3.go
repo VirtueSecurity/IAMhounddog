@@ -17,10 +17,6 @@ type s3ClientCache struct {
 	clients map[string]*s3.Client
 }
 
-func newS3ClientCache(cfg aws.Config) *s3ClientCache {
-	return &s3ClientCache{cfg: cfg, clients: make(map[string]*s3.Client)}
-}
-
 func (c *s3ClientCache) get(region string) *s3.Client {
 	if client, ok := c.clients[region]; ok {
 		return client
@@ -125,7 +121,7 @@ func addBucketNode(out *graph.Output, bucketArn, bucketName string, extra map[st
 func EnumerateS3Buckets(ctx context.Context, cfg aws.Config, out *graph.Output, regions []string) {
 	graph.AddNode(out, "s3", []string{"AWSResource"}, map[string]interface{}{"name": "s3"})
 
-	cache := newS3ClientCache(cfg)
+	cache := &s3ClientCache{cfg: cfg, clients: make(map[string]*s3.Client)}
 	baseRegion := regions[0]
 
 	buckets, err := cache.get(baseRegion).ListBuckets(ctx, &s3.ListBucketsInput{})

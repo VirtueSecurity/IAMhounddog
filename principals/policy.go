@@ -11,23 +11,6 @@ import (
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 )
 
-func fetchPolicyDocument(ctx context.Context, client *iam.Client, policyArn string) string {
-	pd, err := client.GetPolicy(ctx, &iam.GetPolicyInput{PolicyArn: &policyArn})
-	if err != nil || pd.Policy == nil || pd.Policy.DefaultVersionId == nil {
-		return ""
-	}
-
-	ver, err := client.GetPolicyVersion(ctx, &iam.GetPolicyVersionInput{
-		PolicyArn: &policyArn,
-		VersionId: pd.Policy.DefaultVersionId,
-	})
-	if err != nil || ver.PolicyVersion == nil || ver.PolicyVersion.Document == nil {
-		return ""
-	}
-
-	return aws.ToString(ver.PolicyVersion.Document)
-}
-
 func attachManagedPolicies(ctx context.Context, client *iam.Client, out *graph.Output, policyDocs map[string]string, passRoleEdges map[string]map[string]bool, principalID string, attached []iamtypes.AttachedPolicy) {
 	for _, mp := range attached {
 		pArn := aws.ToString(mp.PolicyArn)
@@ -35,7 +18,17 @@ func attachManagedPolicies(ctx context.Context, client *iam.Client, out *graph.O
 
 		doc, cached := policyDocs[pArn]
 		if !cached {
-			doc = fetchPolicyDocument(ctx, client, pArn)
+			pd, err := client.GetPolicy(ctx, &iam.GetPolicyInput{PolicyArn: &pArn})
+			if err == nil && pd.Policy != nil && pd.Policy.DefaultVersionId != nil {
+				ver, verErr := client.GetPolicyVersion(ctx, &iam.GetPolicyVersionInput{
+					PolicyArn: &pArn,
+					VersionId: pd.Policy.DefaultVersionId,
+				})
+				if verErr == nil && ver.PolicyVersion != nil {
+					doc = aws.ToString(ver.PolicyVersion.Document)
+				}
+			}
+
 			policyDocs[pArn] = doc
 		}
 		if doc == "" {
