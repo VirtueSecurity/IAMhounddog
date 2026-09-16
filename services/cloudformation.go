@@ -106,6 +106,7 @@ func EnumerateCloudFormationStackRoles(ctx context.Context, cfg aws.Config, out 
 
 						graph.AddEdge(out, "awsCloudFormationS3Bucket", "cloudformation", bucketArn, map[string]interface{}{
 							"name":    "awsCloudFormationS3Bucket",
+							"region":  region,
 							"stack":   aws.ToString(st.StackName),
 							"stackId": aws.ToString(st.StackId),
 						})

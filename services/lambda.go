@@ -31,6 +31,7 @@ func EnumerateLambdaExecutionRoles(ctx context.Context, cfg aws.Config, out *gra
 					map[string]interface{}{
 						"name":     "awsLambdaInstanceRole",
 						"function": aws.ToString(fn.FunctionName),
+						"region":   region,
 					})
 			}
 		}

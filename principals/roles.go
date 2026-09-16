@@ -9,9 +9,12 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
+	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 )
 
-func EnumerateRoles(ctx context.Context, client *iam.Client, out *graph.Output, policyDocs map[string]string, passRoleEdges map[string]map[string]bool) {
+func EnumerateRoles(ctx context.Context, client *iam.Client, out *graph.Output, policyDocs map[string]string, passRoleEdges map[string]map[string]bool) []iamtypes.Role {
+	var roles []iamtypes.Role
+
 	rolePaginator := iam.NewListRolesPaginator(client, &iam.ListRolesInput{})
 	for rolePaginator.HasMorePages() {
 		rolePage, err := rolePaginator.NextPage(ctx)
@@ -20,6 +23,8 @@ func EnumerateRoles(ctx context.Context, client *iam.Client, out *graph.Output, 
 			break
 		}
 		for _, role := range rolePage.Roles {
+			roles = append(roles, role)
+
 			roleID := aws.ToString(role.Arn)
 			trustPolicy := ""
 			if role.AssumeRolePolicyDocument != nil && *role.AssumeRolePolicyDocument != "" {
@@ -76,4 +81,6 @@ func EnumerateRoles(ctx context.Context, client *iam.Client, out *graph.Output, 
 			}
 		}
 	}
+
+	return roles
 }

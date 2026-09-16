@@ -89,6 +89,7 @@ func EnumerateEC2InstanceRoles(ctx context.Context, cfg aws.Config, out *graph.O
 						graph.AddEdge(out, "awsEc2InstanceRole", "ec2", roleArn,
 							map[string]interface{}{
 								"name":        "awsEc2InstanceRole",
+								"region":      region,
 								"instanceId":  instID,
 								"instance":    instName,
 								"profileName": profileName,

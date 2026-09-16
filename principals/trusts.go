@@ -1,32 +1,21 @@
 package principals
 
 import (
-	"context"
-
 	"github.com/VirtueSecurity/IAMhounddog/graph"
 	"github.com/VirtueSecurity/IAMhounddog/policies"
-	"github.com/VirtueSecurity/IAMhounddog/report"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/iam"
+	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 )
 
-func EnumerateTrusts(ctx context.Context, client *iam.Client, out *graph.Output, passRoleEdges map[string]map[string]bool) {
-	var roleARNs []string
+func EnumerateTrusts(out *graph.Output, roles []iamtypes.Role, passRoleEdges map[string]map[string]bool) {
+	roleARNs := make([]string, 0, len(roles))
 
-	rolePaginator := iam.NewListRolesPaginator(client, &iam.ListRolesInput{})
-	for rolePaginator.HasMorePages() {
-		rolePage, err := rolePaginator.NextPage(ctx)
-		if err != nil {
-			report.Warn("iam", "ListRoles", "", err)
-			break
-		}
-		for _, role := range rolePage.Roles {
-			roleID := aws.ToString(role.Arn)
-			roleARNs = append(roleARNs, roleID)
+	for _, role := range roles {
+		roleID := aws.ToString(role.Arn)
+		roleARNs = append(roleARNs, roleID)
 
-			policies.AttachTrustRelationships(out, roleID, role.AssumeRolePolicyDocument)
-		}
+		policies.AttachTrustRelationships(out, roleID, role.AssumeRolePolicyDocument)
 	}
 
 	for principalID, resources := range passRoleEdges {

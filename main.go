@@ -231,7 +231,7 @@ func main() {
 
 	if !*onlyServicesFlag {
 		fmt.Println("Enumerating roles")
-		principals.EnumerateRoles(ctx, client, &out, policyDocs, passRoleEdges)
+		roles := principals.EnumerateRoles(ctx, client, &out, policyDocs, passRoleEdges)
 
 		fmt.Println("Enumerating users")
 		principals.EnumerateUsers(ctx, client, &out, policyDocs, passRoleEdges)
@@ -241,7 +241,7 @@ func main() {
 
 		// Need to do this here in case a role trusts a role and the role hasn't been created yet during the first loop
 		fmt.Println("Enumerating trust relationships")
-		principals.EnumerateTrusts(ctx, client, &out, passRoleEdges)
+		principals.EnumerateTrusts(&out, roles, passRoleEdges)
 	}
 
 	if !*onlyRolesFlag {
