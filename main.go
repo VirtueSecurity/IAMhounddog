@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -34,7 +35,7 @@ var typesJSON []byte
 //go:embed import/queries.json
 var queriesJSON []byte
 
-func sendSignedRequest(url string, method string, uri string, keyid string, keytoken string, body []byte) {
+func sendSignedRequest(url string, method string, uri string, keyid string, keytoken string, body []byte) error {
 	d := hmac.New(sha256.New, []byte(keytoken))
 	d.Write([]byte(method + uri))
 	opKey := d.Sum(nil)
@@ -59,7 +60,10 @@ func sendSignedRequest(url string, method string, uri string, keyid string, keyt
 	} else {
 		bodyReader = bytes.NewReader(nil)
 	}
-	req, _ := http.NewRequest(method, url+uri, bodyReader)
+	req, err := http.NewRequest(method, url+uri, bodyReader)
+	if err != nil {
+		return err
+	}
 
 	req.Header.Set("Authorization", "bhesignature "+keyid)
 	req.Header.Set("RequestDate", requestDatetime)
@@ -72,9 +76,16 @@ func sendSignedRequest(url string, method string, uri string, keyid string, keyt
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		detail, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return fmt.Errorf("%s: %s", resp.Status, strings.TrimSpace(string(detail)))
+	}
+
+	return nil
 }
 
 func main() {
@@ -95,16 +106,42 @@ func main() {
 
 	// setup mode for tool
 	if *setupFlag {
-		fmt.Println("Importing custom nodes and queries")
+		if *urlFlag == "" || *keyIDFlag == "" || *keyTokenFlag == "" {
+			fmt.Fprintln(os.Stderr, "-setup requires -url, -id and -token")
+			os.Exit(1)
+		}
 
-		sendSignedRequest(*urlFlag, "POST", "/api/v2/custom-nodes", *keyIDFlag, *keyTokenFlag, typesJSON)
+		baseURL := strings.TrimRight(*urlFlag, "/")
 
 		var queries []json.RawMessage
-		json.Unmarshal(queriesJSON, &queries)
-
-		for _, query := range queries {
-			sendSignedRequest(*urlFlag, "POST", "/api/v2/saved-queries", *keyIDFlag, *keyTokenFlag, query)
+		if err := json.Unmarshal(queriesJSON, &queries); err != nil {
+			fmt.Fprintln(os.Stderr, "unable to parse the bundled queries:", err)
+			os.Exit(1)
 		}
+
+		fmt.Println("Importing custom nodes and queries")
+
+		failed := 0
+
+		if err := sendSignedRequest(baseURL, "POST", "/api/v2/custom-nodes", *keyIDFlag, *keyTokenFlag, typesJSON); err != nil {
+			fmt.Fprintln(os.Stderr, "\t[!] custom nodes:", err)
+			failed++
+		}
+
+		for i, query := range queries {
+			if err := sendSignedRequest(baseURL, "POST", "/api/v2/saved-queries", *keyIDFlag, *keyTokenFlag, query); err != nil {
+				fmt.Fprintf(os.Stderr, "\t[!] query %d of %d: %v\n", i+1, len(queries), err)
+				failed++
+			}
+		}
+
+		if failed > 0 {
+			fmt.Fprintf(os.Stderr, "\n[!] %d of %d setup requests failed, BloodHound was not fully configured\n",
+				failed, len(queries)+1)
+			os.Exit(1)
+		}
+
+		fmt.Printf("Installed node icons and %d queries\n", len(queries))
 
 		return
 	}
