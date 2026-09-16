@@ -10,8 +10,8 @@ import (
 
 const batchGetProjectsMax = 100
 
-func EnumerateCodeBuildProjectRoles(ctx context.Context, cfg aws.Config, out *graph.Output, addedResourceNodes map[string]bool, regions []string) {
-	graph.AddNodeOnce(out, addedResourceNodes, "codebuild", []string{"AWSResource"}, map[string]interface{}{"name": "codebuild"})
+func EnumerateCodeBuildProjectRoles(ctx context.Context, cfg aws.Config, out *graph.Output, regions []string) {
+	graph.AddNode(out, "codebuild", []string{"AWSResource"}, map[string]interface{}{"name": "codebuild"})
 
 	for _, region := range regions {
 		cbconfig := codebuild.NewFromConfig(cfg, func(o *codebuild.Options) { o.Region = region })

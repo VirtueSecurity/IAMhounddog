@@ -11,7 +11,7 @@ import (
 	"github.com/VirtueSecurity/IAMhounddog/graph"
 )
 
-func addCodePipelineArtifactStoreEdges(out *graph.Output, addedResourceNodes map[string]bool, store *cpTypes.ArtifactStore, pipelineName string) {
+func addCodePipelineArtifactStoreEdges(out *graph.Output, store *cpTypes.ArtifactStore, pipelineName string) {
 	if store == nil {
 		return
 	}
@@ -27,9 +27,7 @@ func addCodePipelineArtifactStoreEdges(out *graph.Output, addedResourceNodes map
 
 	bucketArn := fmt.Sprintf("arn:aws:s3:::%s", bucketName)
 
-	graph.AddNodeOnce(out, addedResourceNodes, bucketArn, []string{"AWSResource"}, map[string]interface{}{
-		"name":       bucketName,
-		"arn":        bucketArn,
+	addBucketNode(out, bucketArn, bucketName, map[string]interface{}{
 		"artifactOf": pipelineName,
 	})
 
@@ -41,8 +39,8 @@ func addCodePipelineArtifactStoreEdges(out *graph.Output, addedResourceNodes map
 	})
 }
 
-func EnumerateCodePipelineRoles(ctx context.Context, cfg aws.Config, out *graph.Output, addedResourceNodes map[string]bool, regions []string) {
-	graph.AddNodeOnce(out, addedResourceNodes, "codepipeline", []string{"AWSResource"}, map[string]interface{}{"name": "codepipeline"})
+func EnumerateCodePipelineRoles(ctx context.Context, cfg aws.Config, out *graph.Output, regions []string) {
+	graph.AddNode(out, "codepipeline", []string{"AWSResource"}, map[string]interface{}{"name": "codepipeline"})
 
 	for _, region := range regions {
 		cpconfig := codepipeline.NewFromConfig(cfg, func(o *codepipeline.Options) { o.Region = region })
@@ -78,11 +76,11 @@ func EnumerateCodePipelineRoles(ctx context.Context, cfg aws.Config, out *graph.
 				}
 
 				if pOut.Pipeline.ArtifactStore != nil {
-					addCodePipelineArtifactStoreEdges(out, addedResourceNodes, pOut.Pipeline.ArtifactStore, name)
+					addCodePipelineArtifactStoreEdges(out, pOut.Pipeline.ArtifactStore, name)
 				}
 
 				for _, store := range pOut.Pipeline.ArtifactStores {
-					addCodePipelineArtifactStoreEdges(out, addedResourceNodes, &store, name)
+					addCodePipelineArtifactStoreEdges(out, &store, name)
 				}
 			}
 		}

@@ -181,9 +181,6 @@ func main() {
 		}
 	}
 
-	addedPolicyNodes := make(map[string]bool)
-	addedResourceNodes := make(map[string]bool)
-	addedPrincipalNodes := make(map[string]bool)
 	policyDocs := make(map[string]string)
 	passRoleEdges := make(map[string]map[string]bool)
 
@@ -191,51 +188,51 @@ func main() {
 
 	if !*onlyServicesFlag {
 		fmt.Println("Enumerating roles")
-		principals.EnumerateRoles(ctx, client, &out, addedPolicyNodes, addedResourceNodes, policyDocs, passRoleEdges)
+		principals.EnumerateRoles(ctx, client, &out, policyDocs, passRoleEdges)
 
 		fmt.Println("Enumerating users")
-		principals.EnumerateUsers(ctx, client, &out, addedPolicyNodes, addedResourceNodes, policyDocs, passRoleEdges)
+		principals.EnumerateUsers(ctx, client, &out, policyDocs, passRoleEdges)
 
 		fmt.Println("Enumerating groups")
-		principals.EnumerateGroups(ctx, client, &out, addedPolicyNodes, addedResourceNodes, policyDocs, passRoleEdges)
+		principals.EnumerateGroups(ctx, client, &out, policyDocs, passRoleEdges)
 
 		// Need to do this here in case a role trusts a role and the role hasn't been created yet during the first loop
 		fmt.Println("Enumerating trust relationships")
-		principals.EnumerateTrusts(ctx, client, &out, addedPrincipalNodes, passRoleEdges)
+		principals.EnumerateTrusts(ctx, client, &out, passRoleEdges)
 	}
 
 	if !*onlyRolesFlag {
 		fmt.Println("Enumerating services")
 
 		fmt.Println("\tEnumerating lambdas")
-		services.EnumerateLambdaExecutionRoles(ctx, cfg, &out, addedResourceNodes, regions)
+		services.EnumerateLambdaExecutionRoles(ctx, cfg, &out, regions)
 
 		fmt.Println("\tEnumerating ec2")
-		services.EnumerateEC2InstanceRoles(ctx, cfg, &out, addedResourceNodes, regions)
+		services.EnumerateEC2InstanceRoles(ctx, cfg, &out, regions)
 
 		fmt.Println("\tEnumerating rds")
-		services.EnumerateRDSRoles(ctx, cfg, &out, addedResourceNodes, regions)
+		services.EnumerateRDSRoles(ctx, cfg, &out, regions)
 
 		fmt.Println("\tEnumerating ecs")
-		services.EnumerateECSTaskRoles(ctx, cfg, &out, addedResourceNodes, regions)
+		services.EnumerateECSTaskRoles(ctx, cfg, &out, regions)
 
 		fmt.Println("\tEnumerating step functions")
-		services.EnumerateStepFunctionRoles(ctx, cfg, &out, addedResourceNodes, regions)
+		services.EnumerateStepFunctionRoles(ctx, cfg, &out, regions)
 
 		fmt.Println("\tEnumerating eks")
-		services.EnumerateEKSRoles(ctx, cfg, &out, addedResourceNodes, regions)
+		services.EnumerateEKSRoles(ctx, cfg, &out, regions)
 
 		fmt.Println("\tEnumerating s3")
-		services.EnumerateS3Buckets(ctx, cfg, &out, addedResourceNodes, addedPrincipalNodes, regions)
+		services.EnumerateS3Buckets(ctx, cfg, &out, regions)
 
 		fmt.Println("\tEnumerating cloudformation")
-		services.EnumerateCloudFormationStackRoles(ctx, cfg, &out, addedResourceNodes, regions)
+		services.EnumerateCloudFormationStackRoles(ctx, cfg, &out, regions)
 
 		fmt.Println("\tEnumerating codebuild")
-		services.EnumerateCodeBuildProjectRoles(ctx, cfg, &out, addedResourceNodes, regions)
+		services.EnumerateCodeBuildProjectRoles(ctx, cfg, &out, regions)
 
 		fmt.Println("\tEnumerating codepipeline")
-		services.EnumerateCodePipelineRoles(ctx, cfg, &out, addedResourceNodes, regions)
+		services.EnumerateCodePipelineRoles(ctx, cfg, &out, regions)
 
 		services.FlushWarnings()
 	}

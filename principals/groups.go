@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 )
 
-func EnumerateGroups(ctx context.Context, client *iam.Client, out *graph.Output, addedPolicyNodes, addedResourceNodes map[string]bool, policyDocs map[string]string, passRoleEdges map[string]map[string]bool) {
+func EnumerateGroups(ctx context.Context, client *iam.Client, out *graph.Output, policyDocs map[string]string, passRoleEdges map[string]map[string]bool) {
 	groupPaginator := iam.NewListGroupsPaginator(client, &iam.ListGroupsInput{})
 	for groupPaginator.HasMorePages() {
 		groupPage, err := groupPaginator.NextPage(ctx)
@@ -39,7 +39,7 @@ func EnumerateGroups(ctx context.Context, client *iam.Client, out *graph.Output,
 				if err != nil {
 					panic(err)
 				}
-				attachManagedPolicies(ctx, client, out, addedPolicyNodes, addedResourceNodes, policyDocs, passRoleEdges, groupID, pg.AttachedPolicies)
+				attachManagedPolicies(ctx, client, out, policyDocs, passRoleEdges, groupID, pg.AttachedPolicies)
 			}
 
 			// Inline policies on group
@@ -60,7 +60,7 @@ func EnumerateGroups(ctx context.Context, client *iam.Client, out *graph.Output,
 						continue
 					}
 					inlineID := aws.ToString(group.Arn) + ":inline/" + pn
-					policies.AttachPolicy(out, addedPolicyNodes, addedResourceNodes, passRoleEdges, groupID, inlineID, pn, aws.ToString(ggp.PolicyDocument))
+					policies.AttachPolicy(out, passRoleEdges, groupID, inlineID, pn, aws.ToString(ggp.PolicyDocument))
 				}
 			}
 		}

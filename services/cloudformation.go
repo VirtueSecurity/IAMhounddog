@@ -11,8 +11,8 @@ import (
 	"github.com/VirtueSecurity/IAMhounddog/graph"
 )
 
-func EnumerateCloudFormationStackRoles(ctx context.Context, cfg aws.Config, out *graph.Output, addedResourceNodes map[string]bool, regions []string) {
-	graph.AddNodeOnce(out, addedResourceNodes, "cloudformation", []string{"AWSResource"}, map[string]interface{}{"name": "cloudformation"})
+func EnumerateCloudFormationStackRoles(ctx context.Context, cfg aws.Config, out *graph.Output, regions []string) {
+	graph.AddNode(out, "cloudformation", []string{"AWSResource"}, map[string]interface{}{"name": "cloudformation"})
 
 	activeStatuses := []cfntypes.StackStatus{
 		cfntypes.StackStatusCreateInProgress,
@@ -97,11 +97,10 @@ func EnumerateCloudFormationStackRoles(ctx context.Context, cfg aws.Config, out 
 
 						bucketArn := fmt.Sprintf("arn:aws:s3:::%s", bucketName)
 
-						graph.AddNodeOnce(out, addedResourceNodes, bucketArn, []string{"AWSResource"}, map[string]interface{}{
-							"name":    bucketName,
-							"arn":     bucketArn,
+						addBucketNode(out, bucketArn, bucketName, map[string]interface{}{
 							"stack":   aws.ToString(st.StackName),
 							"stackId": aws.ToString(st.StackId),
+							"region":  region,
 						})
 
 						graph.AddEdge(out, "awsCloudFormationS3Bucket", "cloudformation", bucketArn, map[string]interface{}{

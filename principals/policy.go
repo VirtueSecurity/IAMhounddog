@@ -28,7 +28,7 @@ func fetchPolicyDocument(ctx context.Context, client *iam.Client, policyArn stri
 	return aws.ToString(ver.PolicyVersion.Document)
 }
 
-func attachManagedPolicies(ctx context.Context, client *iam.Client, out *graph.Output, addedPolicyNodes, addedResourceNodes map[string]bool, policyDocs map[string]string, passRoleEdges map[string]map[string]bool, principalID string, attached []iamtypes.AttachedPolicy) {
+func attachManagedPolicies(ctx context.Context, client *iam.Client, out *graph.Output, policyDocs map[string]string, passRoleEdges map[string]map[string]bool, principalID string, attached []iamtypes.AttachedPolicy) {
 	for _, mp := range attached {
 		pArn := aws.ToString(mp.PolicyArn)
 		pName := aws.ToString(mp.PolicyName)
@@ -42,6 +42,6 @@ func attachManagedPolicies(ctx context.Context, client *iam.Client, out *graph.O
 			continue
 		}
 
-		policies.AttachPolicy(out, addedPolicyNodes, addedResourceNodes, passRoleEdges, principalID, pArn, pName, doc)
+		policies.AttachPolicy(out, passRoleEdges, principalID, pArn, pName, doc)
 	}
 }

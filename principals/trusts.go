@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 )
 
-func EnumerateTrusts(ctx context.Context, client *iam.Client, out *graph.Output, addedPrincipalNodes map[string]bool, passRoleEdges map[string]map[string]bool) {
+func EnumerateTrusts(ctx context.Context, client *iam.Client, out *graph.Output, passRoleEdges map[string]map[string]bool) {
 	rolePaginator := iam.NewListRolesPaginator(client, &iam.ListRolesInput{})
 	for rolePaginator.HasMorePages() {
 		rolePage, err := rolePaginator.NextPage(ctx)
@@ -20,7 +20,7 @@ func EnumerateTrusts(ctx context.Context, client *iam.Client, out *graph.Output,
 		for _, role := range rolePage.Roles {
 			roleID := aws.ToString(role.Arn)
 
-			policies.AttachTrustRelationships(out, addedPrincipalNodes, roleID, role.AssumeRolePolicyDocument)
+			policies.AttachTrustRelationships(out, roleID, role.AssumeRolePolicyDocument)
 		}
 	}
 

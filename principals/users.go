@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 )
 
-func EnumerateUsers(ctx context.Context, client *iam.Client, out *graph.Output, addedPolicyNodes, addedResourceNodes map[string]bool, policyDocs map[string]string, passRoleEdges map[string]map[string]bool) {
+func EnumerateUsers(ctx context.Context, client *iam.Client, out *graph.Output, policyDocs map[string]string, passRoleEdges map[string]map[string]bool) {
 	userPaginator := iam.NewListUsersPaginator(client, &iam.ListUsersInput{})
 	for userPaginator.HasMorePages() {
 		userPage, err := userPaginator.NextPage(ctx)
@@ -39,7 +39,7 @@ func EnumerateUsers(ctx context.Context, client *iam.Client, out *graph.Output, 
 				if err != nil {
 					panic(err)
 				}
-				attachManagedPolicies(ctx, client, out, addedPolicyNodes, addedResourceNodes, policyDocs, passRoleEdges, userID, pg.AttachedPolicies)
+				attachManagedPolicies(ctx, client, out, policyDocs, passRoleEdges, userID, pg.AttachedPolicies)
 			}
 
 			// Inline policies on user
@@ -60,7 +60,7 @@ func EnumerateUsers(ctx context.Context, client *iam.Client, out *graph.Output, 
 						continue
 					}
 					inlineID := aws.ToString(user.Arn) + ":inline/" + pn
-					policies.AttachPolicy(out, addedPolicyNodes, addedResourceNodes, passRoleEdges, userID, inlineID, pn, aws.ToString(gup.PolicyDocument))
+					policies.AttachPolicy(out, passRoleEdges, userID, inlineID, pn, aws.ToString(gup.PolicyDocument))
 				}
 			}
 

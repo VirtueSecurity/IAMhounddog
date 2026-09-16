@@ -9,8 +9,8 @@ import (
 	"github.com/VirtueSecurity/IAMhounddog/graph"
 )
 
-func EnumerateRDSRoles(ctx context.Context, cfg aws.Config, out *graph.Output, addedResourceNodes map[string]bool, regions []string) {
-	graph.AddNodeOnce(out, addedResourceNodes, "rds", []string{"AWSResource"}, map[string]interface{}{"name": "rds"})
+func EnumerateRDSRoles(ctx context.Context, cfg aws.Config, out *graph.Output, regions []string) {
+	graph.AddNode(out, "rds", []string{"AWSResource"}, map[string]interface{}{"name": "rds"})
 
 	for _, region := range regions {
 		rdsconfig := rds.NewFromConfig(cfg, func(o *rds.Options) { o.Region = region })

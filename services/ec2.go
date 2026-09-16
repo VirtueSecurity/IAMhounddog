@@ -53,8 +53,8 @@ func instanceProfileRoles(ctx context.Context, client *iam.Client, cache map[str
 	return roles
 }
 
-func EnumerateEC2InstanceRoles(ctx context.Context, cfg aws.Config, out *graph.Output, addedResourceNodes map[string]bool, regions []string) {
-	graph.AddNodeOnce(out, addedResourceNodes, "ec2", []string{"AWSResource"}, map[string]interface{}{"name": "ec2"})
+func EnumerateEC2InstanceRoles(ctx context.Context, cfg aws.Config, out *graph.Output, regions []string) {
+	graph.AddNode(out, "ec2", []string{"AWSResource"}, map[string]interface{}{"name": "ec2"})
 
 	iamclient := iam.NewFromConfig(cfg)
 

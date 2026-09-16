@@ -8,8 +8,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 )
 
-func EnumerateEKSRoles(ctx context.Context, cfg aws.Config, out *graph.Output, addedResourceNodes map[string]bool, regions []string) {
-	graph.AddNodeOnce(out, addedResourceNodes, "eks", []string{"AWSResource"}, map[string]interface{}{"name": "eks"})
+func EnumerateEKSRoles(ctx context.Context, cfg aws.Config, out *graph.Output, regions []string) {
+	graph.AddNode(out, "eks", []string{"AWSResource"}, map[string]interface{}{"name": "eks"})
 
 	for _, region := range regions {
 		eksconfig := eks.NewFromConfig(cfg, func(o *eks.Options) { o.Region = region })

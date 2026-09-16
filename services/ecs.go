@@ -23,8 +23,8 @@ func ecsTaskDefProps(td *ecstypes.TaskDefinition, region, edgeName string) map[s
 	}
 }
 
-func EnumerateECSTaskRoles(ctx context.Context, cfg aws.Config, out *graph.Output, addedResourceNodes map[string]bool, regions []string) {
-	graph.AddNodeOnce(out, addedResourceNodes, "ecs", []string{"AWSResource"}, map[string]interface{}{"name": "ecs"})
+func EnumerateECSTaskRoles(ctx context.Context, cfg aws.Config, out *graph.Output, regions []string) {
+	graph.AddNode(out, "ecs", []string{"AWSResource"}, map[string]interface{}{"name": "ecs"})
 
 	for _, region := range regions {
 		ecsconfig := ecs.NewFromConfig(cfg, func(o *ecs.Options) { o.Region = region })

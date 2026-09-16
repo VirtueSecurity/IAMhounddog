@@ -104,8 +104,26 @@ func classifyIaCBucket(bucketName string) *iacBucket {
 	return nil
 }
 
-func EnumerateS3Buckets(ctx context.Context, cfg aws.Config, out *graph.Output, addedResourceNodes map[string]bool, addedPrincipalNodes map[string]bool, regions []string) {
-	graph.AddNodeOnce(out, addedResourceNodes, "s3", []string{"AWSResource"}, map[string]interface{}{"name": "s3"})
+func addBucketNode(out *graph.Output, bucketArn, bucketName string, extra map[string]interface{}) {
+	props := map[string]interface{}{
+		"name": bucketName,
+		"arn":  bucketArn,
+	}
+
+	for k, v := range extra {
+		props[k] = v
+	}
+
+	if iac := classifyIaCBucket(bucketName); iac != nil {
+		props["iacTool"] = iac.tool
+		props["iacContent"] = iac.content
+	}
+
+	graph.AddNode(out, bucketArn, []string{"AWSResource"}, props)
+}
+
+func EnumerateS3Buckets(ctx context.Context, cfg aws.Config, out *graph.Output, regions []string) {
+	graph.AddNode(out, "s3", []string{"AWSResource"}, map[string]interface{}{"name": "s3"})
 
 	cache := newS3ClientCache(cfg)
 	baseRegion := regions[0]
@@ -129,19 +147,9 @@ func EnumerateS3Buckets(ctx context.Context, cfg aws.Config, out *graph.Output, 
 
 		region := bucketRegion(ctx, cache, b, baseRegion)
 
-		props := map[string]interface{}{
-			"name":   bucketName,
-			"arn":    bucketArn,
-			"region": region,
-		}
-
 		iac := classifyIaCBucket(bucketName)
-		if iac != nil {
-			props["iacTool"] = iac.tool
-			props["iacContent"] = iac.content
-		}
 
-		graph.AddNodeOnce(out, addedResourceNodes, bucketArn, []string{"AWSResource"}, props)
+		addBucketNode(out, bucketArn, bucketName, map[string]interface{}{"region": region})
 
 		graph.AddEdge(out, "awsS3Bucket", "s3", bucketArn, map[string]interface{}{
 			"name":   "awsS3Bucket",
@@ -150,7 +158,7 @@ func EnumerateS3Buckets(ctx context.Context, cfg aws.Config, out *graph.Output, 
 		})
 
 		if iac != nil && iac.hub != "" {
-			graph.AddNodeOnce(out, addedResourceNodes, iac.hub, []string{"AWSResource"}, map[string]interface{}{
+			graph.AddNode(out, iac.hub, []string{"AWSResource"}, map[string]interface{}{
 				"name": iac.hub,
 			})
 
@@ -175,6 +183,6 @@ func EnumerateS3Buckets(ctx context.Context, cfg aws.Config, out *graph.Output, 
 			continue
 		}
 
-		policies.ParseS3PolicyDoc(out, addedPrincipalNodes, bucketArn, aws.ToString(policy.Policy))
+		policies.ParseS3PolicyDoc(out, bucketArn, aws.ToString(policy.Policy))
 	}
 }

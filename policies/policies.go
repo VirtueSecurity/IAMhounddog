@@ -18,6 +18,11 @@ type Statement struct {
 
 type StatementList []Statement
 
+type typedPrincipal struct {
+	ptype string
+	value string
+}
+
 func (l *StatementList) UnmarshalJSON(data []byte) error {
 	var list []Statement
 	if err := json.Unmarshal(data, &list); err == nil {
@@ -62,7 +67,7 @@ func resourcesToStrings(res interface{}) []string {
 	}
 }
 
-func ParsePolicyDoc(out *graph.Output, addedResourceNodes map[string]bool, passRoleEdges map[string]map[string]bool, principalID, policyID string, docStr string, emitActionEdges bool) {
+func ParsePolicyDoc(out *graph.Output, passRoleEdges map[string]map[string]bool, principalID, policyID string, docStr string, emitActionEdges bool) {
 	var doc PolicyDocument
 
 	if err := json.Unmarshal([]byte(docStr), &doc); err != nil {
@@ -95,7 +100,7 @@ func ParsePolicyDoc(out *graph.Output, addedResourceNodes map[string]bool, passR
 			edgeKind := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(act, "-", ""), ":", ""), "*", "AllAccess")
 
 			if emitActionEdges {
-				graph.AddNodeOnce(out, addedResourceNodes, svc, []string{"AWSResource"}, map[string]interface{}{"name": svc})
+				graph.AddNode(out, svc, []string{"AWSResource"}, map[string]interface{}{"name": svc})
 
 				graph.AddEdge(out, edgeKind, policyID, svc,
 					map[string]interface{}{
@@ -119,15 +124,14 @@ func ParsePolicyDoc(out *graph.Output, addedResourceNodes map[string]bool, passR
 	}
 }
 
-func AttachPolicy(out *graph.Output, addedPolicyNodes, addedResourceNodes map[string]bool, passRoleEdges map[string]map[string]bool, principalID, policyArn, policyName string, encodedDoc string) {
+func AttachPolicy(out *graph.Output, passRoleEdges map[string]map[string]bool, principalID, policyArn, policyName string, encodedDoc string) {
 	docStr, err := DecodePolicyDocument(encodedDoc)
 	if err != nil {
 		return
 	}
 
-	firstSighting := graph.AddNodeOnce(
+	firstSighting := graph.AddNode(
 		out,
-		addedPolicyNodes,
 		policyArn,
 		[]string{"AWSPolicy"},
 		map[string]interface{}{
@@ -140,10 +144,39 @@ func AttachPolicy(out *graph.Output, addedPolicyNodes, addedResourceNodes map[st
 			"name": "awsAttachedPolicy",
 		})
 
-	ParsePolicyDoc(out, addedResourceNodes, passRoleEdges, principalID, policyArn, docStr, firstSighting)
+	ParsePolicyDoc(out, passRoleEdges, principalID, policyArn, docStr, firstSighting)
 }
 
-func ParseS3PolicyDoc(out *graph.Output, addedPrincipalNodes map[string]bool, bucketArn, docStr string) {
+// helper function to ensure trust policies and bucket policies agree on format
+func principalNodeID(ptype, value string) string {
+	return "principal:" + strings.ToLower(ptype) + ":" + value
+}
+
+func collectTypedPrincipals(v interface{}) []typedPrincipal {
+	var out []typedPrincipal
+
+	switch t := v.(type) {
+	case string:
+		out = append(out, typedPrincipal{ptype: "AWS", value: t})
+	case map[string]interface{}:
+		for ptype, raw := range t {
+			switch vv := raw.(type) {
+			case string:
+				out = append(out, typedPrincipal{ptype: ptype, value: vv})
+			case []interface{}:
+				for _, el := range vv {
+					if s, ok := el.(string); ok {
+						out = append(out, typedPrincipal{ptype: ptype, value: s})
+					}
+				}
+			}
+		}
+	}
+
+	return out
+}
+
+func ParseS3PolicyDoc(out *graph.Output, bucketArn, docStr string) {
 	var doc PolicyDocument
 
 	if err := json.Unmarshal([]byte(docStr), &doc); err != nil {
@@ -155,24 +188,7 @@ func ParseS3PolicyDoc(out *graph.Output, addedPrincipalNodes map[string]bool, bu
 			continue
 		}
 
-		var principals []string
-		switch v := stmt.Principal.(type) {
-		case string:
-			principals = append(principals, v)
-		case map[string]interface{}:
-			for _, raw := range v {
-				switch vv := raw.(type) {
-				case string:
-					principals = append(principals, vv)
-				case []interface{}:
-					for _, el := range vv {
-						if s, ok := el.(string); ok {
-							principals = append(principals, s)
-						}
-					}
-				}
-			}
-		}
+		principals := collectTypedPrincipals(stmt.Principal)
 
 		var actions []string
 		switch a := stmt.Action.(type) {
@@ -186,16 +202,22 @@ func ParseS3PolicyDoc(out *graph.Output, addedPrincipalNodes map[string]bool, bu
 			}
 		}
 
-		for _, principal := range principals {
-			graph.AddNodeOnce(out, addedPrincipalNodes, principal, []string{"AWSPrincipal"}, map[string]interface{}{
-				"type": principal,
-				"name": principal,
-			})
+		for _, p := range principals {
+			start := p.value
+
+			if !graph.HasAnyKind(out, start, "AWSRole", "AWSUser") {
+				start = principalNodeID(p.ptype, p.value)
+
+				graph.AddNode(out, start, []string{"AWSPrincipal"}, map[string]interface{}{
+					"type": p.ptype,
+					"name": p.value,
+				})
+			}
 
 			for _, act := range actions {
 				edgeKind := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(act, "-", ""), ":", ""), "*", "AllAccess")
 
-				graph.AddEdge(out, edgeKind, principal, bucketArn, map[string]interface{}{
+				graph.AddEdge(out, edgeKind, start, bucketArn, map[string]interface{}{
 					"name": edgeKind,
 				})
 			}

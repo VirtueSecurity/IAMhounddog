@@ -8,8 +8,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 )
 
-func EnumerateLambdaExecutionRoles(ctx context.Context, cfg aws.Config, out *graph.Output, addedResourceNodes map[string]bool, regions []string) {
-	graph.AddNodeOnce(out, addedResourceNodes, "lambda", []string{"AWSResource"}, map[string]interface{}{"name": "lambda"})
+func EnumerateLambdaExecutionRoles(ctx context.Context, cfg aws.Config, out *graph.Output, regions []string) {
+	graph.AddNode(out, "lambda", []string{"AWSResource"}, map[string]interface{}{"name": "lambda"})
 
 	for _, region := range regions {
 		lambdaconfig := lambda.NewFromConfig(cfg, func(o *lambda.Options) { o.Region = region })

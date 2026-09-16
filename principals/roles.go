@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 )
 
-func EnumerateRoles(ctx context.Context, client *iam.Client, out *graph.Output, addedPolicyNodes, addedResourceNodes map[string]bool, policyDocs map[string]string, passRoleEdges map[string]map[string]bool) {
+func EnumerateRoles(ctx context.Context, client *iam.Client, out *graph.Output, policyDocs map[string]string, passRoleEdges map[string]map[string]bool) {
 	rolePaginator := iam.NewListRolesPaginator(client, &iam.ListRolesInput{})
 	for rolePaginator.HasMorePages() {
 		rolePage, err := rolePaginator.NextPage(ctx)
@@ -46,7 +46,7 @@ func EnumerateRoles(ctx context.Context, client *iam.Client, out *graph.Output, 
 				if err != nil {
 					panic(err)
 				}
-				attachManagedPolicies(ctx, client, out, addedPolicyNodes, addedResourceNodes, policyDocs, passRoleEdges, roleID, mpPage.AttachedPolicies)
+				attachManagedPolicies(ctx, client, out, policyDocs, passRoleEdges, roleID, mpPage.AttachedPolicies)
 			}
 
 			// Inline policies on role
@@ -67,7 +67,7 @@ func EnumerateRoles(ctx context.Context, client *iam.Client, out *graph.Output, 
 						continue
 					}
 					inlineID := aws.ToString(role.Arn) + ":inline/" + pn
-					policies.AttachPolicy(out, addedPolicyNodes, addedResourceNodes, passRoleEdges, roleID, inlineID, pn, aws.ToString(gpr.PolicyDocument))
+					policies.AttachPolicy(out, passRoleEdges, roleID, inlineID, pn, aws.ToString(gpr.PolicyDocument))
 				}
 			}
 		}

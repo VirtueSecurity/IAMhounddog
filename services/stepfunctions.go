@@ -9,8 +9,8 @@ import (
 	"github.com/VirtueSecurity/IAMhounddog/graph"
 )
 
-func EnumerateStepFunctionRoles(ctx context.Context, cfg aws.Config, out *graph.Output, addedResourceNodes map[string]bool, regions []string) {
-	graph.AddNodeOnce(out, addedResourceNodes, "states", []string{"AWSResource"}, map[string]interface{}{"name": "states"})
+func EnumerateStepFunctionRoles(ctx context.Context, cfg aws.Config, out *graph.Output, regions []string) {
+	graph.AddNode(out, "states", []string{"AWSResource"}, map[string]interface{}{"name": "states"})
 
 	for _, region := range regions {
 		sfconfig := sfn.NewFromConfig(cfg, func(o *sfn.Options) { o.Region = region })

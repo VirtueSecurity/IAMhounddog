@@ -43,15 +43,6 @@ func collectPrincipalStrings(v interface{}) []string {
 	return out
 }
 
-func graphHasRole(out *graph.Output, id string) bool {
-	for _, n := range out.Graph.Nodes {
-		if n.ID == id {
-			return true
-		}
-	}
-	return false
-}
-
 func prettyJSON(raw json.RawMessage) string {
 	if len(raw) == 0 {
 		return ""
@@ -63,7 +54,7 @@ func prettyJSON(raw json.RawMessage) string {
 	return buf.String()
 }
 
-func AttachTrustRelationships(out *graph.Output, addedPrincipalNodes map[string]bool, roleID string, encodedDoc *string) {
+func AttachTrustRelationships(out *graph.Output, roleID string, encodedDoc *string) {
 	if encodedDoc == nil || *encodedDoc == "" {
 		return
 	}
@@ -102,24 +93,22 @@ func AttachTrustRelationships(out *graph.Output, addedPrincipalNodes map[string]
 					continue
 				}
 				for _, val := range pvals {
-					if graphHasRole(out, val) {
-						graph.AddEdge(out, "awsAssumeRoleAllowed", val, roleID,
-							map[string]interface{}{
-								"name": "awsAssumeRoleAllowed",
-							})
-					} else {
-						id := "principal:" + strings.ToLower(ptype) + ":" + val
-						graph.AddNodeOnce(out, addedPrincipalNodes, id, []string{"AWSPrincipal"}, map[string]interface{}{
+					start := val
+
+					if !graph.HasAnyKind(out, val, "AWSRole", "AWSUser") {
+						start = principalNodeID(ptype, val)
+
+						graph.AddNode(out, start, []string{"AWSPrincipal"}, map[string]interface{}{
 							"type": ptype,
 							"name": val,
 						})
-
-						graph.AddEdge(out, "awsAssumeRoleAllowed", id, roleID,
-							map[string]interface{}{
-								"name":      "awsAssumeRoleAllowed",
-								"condition": prettyJSON(st.Condition),
-							})
 					}
+
+					graph.AddEdge(out, "awsAssumeRoleAllowed", start, roleID,
+						map[string]interface{}{
+							"name":      "awsAssumeRoleAllowed",
+							"condition": prettyJSON(st.Condition),
+						})
 				}
 			}
 		}
