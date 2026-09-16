@@ -9,6 +9,7 @@ import (
 	cfntypes "github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
+	"github.com/VirtueSecurity/IAMhounddog/report"
 )
 
 func EnumerateCloudFormationStackRoles(ctx context.Context, cfg aws.Config, out *graph.Output, regions []string) {
@@ -48,7 +49,7 @@ func EnumerateCloudFormationStackRoles(ctx context.Context, cfg aws.Config, out 
 		for pager.HasMorePages() {
 			page, err := pager.NextPage(ctx)
 			if err != nil {
-				warn("cloudformation", "ListStacks", region, err)
+				report.Warn("cloudformation", "ListStacks", region, err)
 				break
 			}
 			for _, s := range page.StackSummaries {
@@ -56,7 +57,7 @@ func EnumerateCloudFormationStackRoles(ctx context.Context, cfg aws.Config, out 
 					StackName: s.StackName,
 				})
 				if err != nil {
-					warn("cloudformation", "DescribeStacks", region, err)
+					report.Warn("cloudformation", "DescribeStacks", region, err)
 					continue
 				}
 				if len(desc.Stacks) == 0 {
@@ -81,7 +82,7 @@ func EnumerateCloudFormationStackRoles(ctx context.Context, cfg aws.Config, out 
 				for resPager.HasMorePages() {
 					resPage, err := resPager.NextPage(ctx)
 					if err != nil {
-						warn("cloudformation", "ListStackResources", region, err)
+						report.Warn("cloudformation", "ListStackResources", region, err)
 						break
 					}
 

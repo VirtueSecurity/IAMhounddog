@@ -7,6 +7,7 @@ import (
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
 	"github.com/VirtueSecurity/IAMhounddog/policies"
+	"github.com/VirtueSecurity/IAMhounddog/report"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -36,7 +37,7 @@ func bucketRegion(ctx context.Context, cache *s3ClientCache, b s3types.Bucket, f
 		Bucket: b.Name,
 	})
 	if err != nil {
-		warn("s3", "GetBucketLocation", "", err)
+		report.Warn("s3", "GetBucketLocation", "", err)
 		return fallback
 	}
 
@@ -126,7 +127,7 @@ func EnumerateS3Buckets(ctx context.Context, cfg aws.Config, out *graph.Output, 
 
 	buckets, err := cache.get(baseRegion).ListBuckets(ctx, &s3.ListBucketsInput{})
 	if err != nil {
-		warn("s3", "ListBuckets", baseRegion, err)
+		report.Warn("s3", "ListBuckets", baseRegion, err)
 		return
 	}
 
@@ -170,8 +171,8 @@ func EnumerateS3Buckets(ctx context.Context, cfg aws.Config, out *graph.Output, 
 		})
 		if err != nil {
 			// A bucket with no policy attached is normal, not a failure.
-			if errorCode(err) != "NoSuchBucketPolicy" {
-				warn("s3", "GetBucketPolicy", region, err)
+			if report.ErrorCode(err) != "NoSuchBucketPolicy" {
+				report.Warn("s3", "GetBucketPolicy", region, err)
 			}
 			continue
 		}

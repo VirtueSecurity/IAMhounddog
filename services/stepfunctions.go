@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
+	"github.com/VirtueSecurity/IAMhounddog/report"
 )
 
 func EnumerateStepFunctionRoles(ctx context.Context, cfg aws.Config, out *graph.Output, regions []string) {
@@ -19,7 +20,7 @@ func EnumerateStepFunctionRoles(ctx context.Context, cfg aws.Config, out *graph.
 		for pager.HasMorePages() {
 			page, err := pager.NextPage(ctx)
 			if err != nil {
-				warn("states", "ListStateMachines", region, err)
+				report.Warn("states", "ListStateMachines", region, err)
 				break
 			}
 			for _, sm := range page.StateMachines {
@@ -27,7 +28,7 @@ func EnumerateStepFunctionRoles(ctx context.Context, cfg aws.Config, out *graph.
 					StateMachineArn: sm.StateMachineArn,
 				})
 				if err != nil {
-					warn("states", "DescribeStateMachine", region, err)
+					report.Warn("states", "DescribeStateMachine", region, err)
 					continue
 				}
 				if desc == nil {

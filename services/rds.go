@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
+	"github.com/VirtueSecurity/IAMhounddog/report"
 )
 
 func EnumerateRDSRoles(ctx context.Context, cfg aws.Config, out *graph.Output, regions []string) {
@@ -19,7 +20,7 @@ func EnumerateRDSRoles(ctx context.Context, cfg aws.Config, out *graph.Output, r
 		for instPager.HasMorePages() {
 			page, err := instPager.NextPage(ctx)
 			if err != nil {
-				warn("rds", "DescribeDBInstances", region, err)
+				report.Warn("rds", "DescribeDBInstances", region, err)
 				break
 			}
 			for _, inst := range page.DBInstances {
@@ -57,7 +58,7 @@ func EnumerateRDSRoles(ctx context.Context, cfg aws.Config, out *graph.Output, r
 		for clPager.HasMorePages() {
 			page, err := clPager.NextPage(ctx)
 			if err != nil {
-				warn("rds", "DescribeDBClusters", region, err)
+				report.Warn("rds", "DescribeDBClusters", region, err)
 				break
 			}
 			for _, cl := range page.DBClusters {

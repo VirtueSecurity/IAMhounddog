@@ -5,6 +5,7 @@ import (
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
 	"github.com/VirtueSecurity/IAMhounddog/policies"
+	"github.com/VirtueSecurity/IAMhounddog/report"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
@@ -17,7 +18,8 @@ func EnumerateTrusts(ctx context.Context, client *iam.Client, out *graph.Output,
 	for rolePaginator.HasMorePages() {
 		rolePage, err := rolePaginator.NextPage(ctx)
 		if err != nil {
-			panic(err)
+			report.Warn("iam", "ListRoles", "", err)
+			break
 		}
 		for _, role := range rolePage.Roles {
 			roleID := aws.ToString(role.Arn)

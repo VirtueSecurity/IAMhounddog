@@ -5,6 +5,7 @@ import (
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
 	"github.com/VirtueSecurity/IAMhounddog/policies"
+	"github.com/VirtueSecurity/IAMhounddog/report"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
@@ -15,7 +16,8 @@ func EnumerateRoles(ctx context.Context, client *iam.Client, out *graph.Output, 
 	for rolePaginator.HasMorePages() {
 		rolePage, err := rolePaginator.NextPage(ctx)
 		if err != nil {
-			panic(err)
+			report.Warn("iam", "ListRoles", "", err)
+			break
 		}
 		for _, role := range rolePage.Roles {
 			roleID := aws.ToString(role.Arn)
@@ -44,7 +46,8 @@ func EnumerateRoles(ctx context.Context, client *iam.Client, out *graph.Output, 
 			for mpPaginator.HasMorePages() {
 				mpPage, err := mpPaginator.NextPage(ctx)
 				if err != nil {
-					panic(err)
+					report.Warn("iam", "ListAttachedRolePolicies", "", err)
+					break
 				}
 				attachManagedPolicies(ctx, client, out, policyDocs, passRoleEdges, roleID, mpPage.AttachedPolicies)
 			}
@@ -56,7 +59,8 @@ func EnumerateRoles(ctx context.Context, client *iam.Client, out *graph.Output, 
 			for rpPaginator.HasMorePages() {
 				rpPage, err := rpPaginator.NextPage(ctx)
 				if err != nil {
-					panic(err)
+					report.Warn("iam", "ListRolePolicies", "", err)
+					break
 				}
 				for _, pn := range rpPage.PolicyNames {
 					gpr, err := client.GetRolePolicy(ctx, &iam.GetRolePolicyInput{

@@ -5,6 +5,7 @@ import (
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
 	"github.com/VirtueSecurity/IAMhounddog/policies"
+	"github.com/VirtueSecurity/IAMhounddog/report"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
@@ -15,7 +16,8 @@ func EnumerateGroups(ctx context.Context, client *iam.Client, out *graph.Output,
 	for groupPaginator.HasMorePages() {
 		groupPage, err := groupPaginator.NextPage(ctx)
 		if err != nil {
-			panic(err)
+			report.Warn("iam", "ListGroups", "", err)
+			break
 		}
 		for _, group := range groupPage.Groups {
 			groupID := aws.ToString(group.Arn)
@@ -37,7 +39,8 @@ func EnumerateGroups(ctx context.Context, client *iam.Client, out *graph.Output,
 			for agp.HasMorePages() {
 				pg, err := agp.NextPage(ctx)
 				if err != nil {
-					panic(err)
+					report.Warn("iam", "ListAttachedGroupPolicies", "", err)
+					break
 				}
 				attachManagedPolicies(ctx, client, out, policyDocs, passRoleEdges, groupID, pg.AttachedPolicies)
 			}
@@ -49,7 +52,8 @@ func EnumerateGroups(ctx context.Context, client *iam.Client, out *graph.Output,
 			for lgp.HasMorePages() {
 				pg, err := lgp.NextPage(ctx)
 				if err != nil {
-					panic(err)
+					report.Warn("iam", "ListGroupPolicies", "", err)
+					break
 				}
 				for _, pn := range pg.PolicyNames {
 					ggp, err := client.GetGroupPolicy(ctx, &iam.GetGroupPolicyInput{

@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
+	"github.com/VirtueSecurity/IAMhounddog/report"
 )
 
 func instanceProfileNameFromArn(arn string) string {
@@ -40,7 +41,7 @@ func instanceProfileRoles(ctx context.Context, client *iam.Client, cache map[str
 		InstanceProfileName: aws.String(profileName),
 	})
 	if err != nil {
-		warn("ec2", "GetInstanceProfile", region, err)
+		report.Warn("ec2", "GetInstanceProfile", region, err)
 	} else if resp.InstanceProfile != nil {
 		for _, r := range resp.InstanceProfile.Roles {
 			if arn := aws.ToString(r.Arn); arn != "" {
@@ -67,7 +68,7 @@ func EnumerateEC2InstanceRoles(ctx context.Context, cfg aws.Config, out *graph.O
 		for pager.HasMorePages() {
 			page, err := pager.NextPage(ctx)
 			if err != nil {
-				warn("ec2", "DescribeInstances", region, err)
+				report.Warn("ec2", "DescribeInstances", region, err)
 				break
 			}
 			for _, res := range page.Reservations {

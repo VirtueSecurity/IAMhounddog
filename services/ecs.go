@@ -8,6 +8,7 @@ import (
 	ecstypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
+	"github.com/VirtueSecurity/IAMhounddog/report"
 )
 
 func ecsTaskDefProps(td *ecstypes.TaskDefinition, region, edgeName string) map[string]interface{} {
@@ -36,7 +37,7 @@ func EnumerateECSTaskRoles(ctx context.Context, cfg aws.Config, out *graph.Outpu
 		for pager.HasMorePages() {
 			page, err := pager.NextPage(ctx)
 			if err != nil {
-				warn("ecs", "ListTaskDefinitionFamilies", region, err)
+				report.Warn("ecs", "ListTaskDefinitionFamilies", region, err)
 				break
 			}
 			for _, family := range page.Families {
@@ -45,7 +46,7 @@ func EnumerateECSTaskRoles(ctx context.Context, cfg aws.Config, out *graph.Outpu
 					Include:        []ecstypes.TaskDefinitionField{ecstypes.TaskDefinitionFieldTags},
 				})
 				if err != nil {
-					warn("ecs", "DescribeTaskDefinition", region, err)
+					report.Warn("ecs", "DescribeTaskDefinition", region, err)
 					continue
 				}
 				if desc.TaskDefinition == nil {

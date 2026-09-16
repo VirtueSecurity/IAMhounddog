@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
+	"github.com/VirtueSecurity/IAMhounddog/report"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 )
@@ -18,7 +19,7 @@ func EnumerateLambdaExecutionRoles(ctx context.Context, cfg aws.Config, out *gra
 		for pager.HasMorePages() {
 			page, err := pager.NextPage(ctx)
 			if err != nil {
-				warn("lambda", "ListFunctions", region, err)
+				report.Warn("lambda", "ListFunctions", region, err)
 				break
 			}
 			for _, fn := range page.Functions {

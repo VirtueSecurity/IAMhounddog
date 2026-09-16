@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
+	"github.com/VirtueSecurity/IAMhounddog/report"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/codebuild"
 )
@@ -21,7 +22,7 @@ func EnumerateCodeBuildProjectRoles(ctx context.Context, cfg aws.Config, out *gr
 		for pager.HasMorePages() {
 			page, err := pager.NextPage(ctx)
 			if err != nil {
-				warn("codebuild", "ListProjects", region, err)
+				report.Warn("codebuild", "ListProjects", region, err)
 				break
 			}
 			names = append(names, page.Projects...)
@@ -38,7 +39,7 @@ func EnumerateCodeBuildProjectRoles(ctx context.Context, cfg aws.Config, out *gr
 			})
 
 			if err != nil {
-				warn("codebuild", "BatchGetProjects", region, err)
+				report.Warn("codebuild", "BatchGetProjects", region, err)
 				continue
 			}
 			for _, proj := range bg.Projects {

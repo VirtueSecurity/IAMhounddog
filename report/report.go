@@ -1,4 +1,4 @@
-package services
+package report
 
 import (
 	"errors"
@@ -23,7 +23,7 @@ var (
 	failureOrder []string
 )
 
-func errorCode(err error) string {
+func ErrorCode(err error) string {
 	var apiErr smithy.APIError
 	if errors.As(err, &apiErr) {
 		return apiErr.ErrorCode()
@@ -31,12 +31,12 @@ func errorCode(err error) string {
 	return "RequestFailed"
 }
 
-func warn(service, op, region string, err error) {
+func Warn(service, op, region string, err error) {
 	if err == nil {
 		return
 	}
 
-	code := errorCode(err)
+	code := ErrorCode(err)
 	key := service + "|" + op + "|" + code
 
 	f, seen := failures[key]
@@ -65,7 +65,7 @@ func warn(service, op, region string, err error) {
 	}
 }
 
-func FlushWarnings() {
+func Flush() {
 	if len(failureOrder) == 0 {
 		return
 	}

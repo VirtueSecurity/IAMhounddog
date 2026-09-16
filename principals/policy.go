@@ -5,6 +5,7 @@ import (
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
 	"github.com/VirtueSecurity/IAMhounddog/policies"
+	"github.com/VirtueSecurity/IAMhounddog/report"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
@@ -19,12 +20,16 @@ func attachManagedPolicies(ctx context.Context, client *iam.Client, out *graph.O
 		doc, cached := policyDocs[pArn]
 		if !cached {
 			pd, err := client.GetPolicy(ctx, &iam.GetPolicyInput{PolicyArn: &pArn})
-			if err == nil && pd.Policy != nil && pd.Policy.DefaultVersionId != nil {
+			if err != nil {
+				report.Warn("iam", "GetPolicy", "", err)
+			} else if pd.Policy != nil && pd.Policy.DefaultVersionId != nil {
 				ver, verErr := client.GetPolicyVersion(ctx, &iam.GetPolicyVersionInput{
 					PolicyArn: &pArn,
 					VersionId: pd.Policy.DefaultVersionId,
 				})
-				if verErr == nil && ver.PolicyVersion != nil {
+				if verErr != nil {
+					report.Warn("iam", "GetPolicyVersion", "", verErr)
+				} else if ver.PolicyVersion != nil {
 					doc = aws.ToString(ver.PolicyVersion.Document)
 				}
 			}

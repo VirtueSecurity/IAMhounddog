@@ -9,6 +9,7 @@ import (
 	cpTypes "github.com/aws/aws-sdk-go-v2/service/codepipeline/types"
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
+	"github.com/VirtueSecurity/IAMhounddog/report"
 )
 
 func addCodePipelineArtifactStoreEdges(out *graph.Output, store *cpTypes.ArtifactStore, pipelineName string) {
@@ -49,7 +50,7 @@ func EnumerateCodePipelineRoles(ctx context.Context, cfg aws.Config, out *graph.
 		for pager.HasMorePages() {
 			page, err := pager.NextPage(ctx)
 			if err != nil {
-				warn("codepipeline", "ListPipelines", region, err)
+				report.Warn("codepipeline", "ListPipelines", region, err)
 				break
 			}
 			for _, summary := range page.Pipelines {
@@ -60,7 +61,7 @@ func EnumerateCodePipelineRoles(ctx context.Context, cfg aws.Config, out *graph.
 
 				pOut, err := cpconfig.GetPipeline(ctx, &codepipeline.GetPipelineInput{Name: aws.String(name)})
 				if err != nil {
-					warn("codepipeline", "GetPipeline", region, err)
+					report.Warn("codepipeline", "GetPipeline", region, err)
 					continue
 				}
 				if pOut.Pipeline == nil {

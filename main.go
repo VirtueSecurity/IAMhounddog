@@ -17,6 +17,7 @@ import (
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
 	"github.com/VirtueSecurity/IAMhounddog/principals"
+	"github.com/VirtueSecurity/IAMhounddog/report"
 	"github.com/VirtueSecurity/IAMhounddog/services"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -114,7 +115,8 @@ func main() {
 		cfg, err = config.LoadDefaultConfig(ctx)
 	}
 	if err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, "unable to load AWS configuration:", err)
+		os.Exit(1)
 	}
 
 	// default region needed for IAM even though it is global
@@ -233,20 +235,22 @@ func main() {
 
 		fmt.Println("\tEnumerating codepipeline")
 		services.EnumerateCodePipelineRoles(ctx, cfg, &out, regions)
-
-		services.FlushWarnings()
 	}
+
+	report.Flush()
 
 	fmt.Println("Creating graph")
 	file, err := os.Create(*outputFlag)
 	if err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, "unable to create output file:", err)
+		os.Exit(1)
 	}
 	defer file.Close()
 
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(out); err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, "unable to write graph:", err)
+		os.Exit(1)
 	}
 }
