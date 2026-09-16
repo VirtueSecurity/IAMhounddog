@@ -57,7 +57,12 @@ IAMhounddog --AWS_ENDPOINT_URL--> proxy.py :5110 --> moto :5111
   models numbers, which otherwise drops the service entirely), and it enforces
   limits moto does not model, so the code that exists to handle them actually
   runs: `BatchGetProjects` rejects more than 100 names, and
-  `--fail-nodegroups` makes `eks:ListNodegroups` return `AccessDenied`.
+  `--fail-nodegroups` makes `eks:ListNodegroups` return `AccessDenied`. It also
+  implements `Get`/`SetIdentityPoolRoles`, which moto answers with a 500, so the
+  Cognito collector has something to read. The seeder therefore takes two
+  endpoints: moto for most calls, the proxy for those. Only those calls go
+  through the proxy because routing S3 through it breaks moto's region
+  inference on `CreateBucket`.
 
 - **`compare.py`** groups the delta. A raw diff is useless here because most of
   the change is intended. Policy action edges are summarised in aggregate

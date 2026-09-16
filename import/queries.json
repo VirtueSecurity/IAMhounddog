@@ -78,5 +78,10 @@
         "name": "Access to S3 Bucket",
         "query": "MATCH p = allShortestPaths((n)-[*..]->(z)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND (z:AWSResource) AND z.objectid = 'ARN:AWS:S3:::CHANGE' RETURN p LIMIT 1000",
         "description": "Identify all paths to an S3 bucket"
+    },
+    {
+        "name": "Identities Tied to Cognito",
+        "query": "MATCH p = (n:AWSResource)-[:awsCognitoAuthenticatedRole|:awsCognitoUnauthenticatedRole]->(r)-[]->(:AWSPolicy) RETURN p LIMIT 1000",
+        "description": "Identify all identities tied to Cognito pools"
     }
 ]

@@ -54,6 +54,7 @@ IAMhounddog identifies relationships across:
     - CloudFormation
     - CodeBuild
     - CodePipeline
+- Cognito identity pools
 - S3 buckets and bucket policies
 
 ## AI Usage

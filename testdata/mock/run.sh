@@ -64,7 +64,9 @@ done
 
 echo "==> seeding"
 curl -sf -X POST "http://127.0.0.1:$MOTO_PORT/moto-api/reset" > /dev/null
-"$PY" "$HERE/seed.py" "http://127.0.0.1:$MOTO_PORT"
+# Most of the seed goes straight to moto. The second endpoint is the proxy,
+# which the seeder uses only for the APIs moto answers with a 500.
+"$PY" "$HERE/seed.py" "http://127.0.0.1:$MOTO_PORT" "http://127.0.0.1:$PROXY_PORT"
 
 export AWS_ENDPOINT_URL="http://127.0.0.1:$PROXY_PORT"
 export AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_REGION=us-east-1

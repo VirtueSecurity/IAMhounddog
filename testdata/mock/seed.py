@@ -11,6 +11,11 @@ import boto3
 from botocore.config import Config
 
 ENDPOINT = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:5111"
+
+# moto returns a 500 for the identity-pool role APIs, so those calls go to the
+# proxy, which implements them. Everything else talks to moto directly:
+# proxying S3 breaks moto's region inference on CreateBucket.
+PROXY_ENDPOINT = sys.argv[2] if len(sys.argv) > 2 else ENDPOINT
 REGIONS = ["us-east-1", "eu-west-1"]
 ACCOUNT = "123456789012"
 EXTERNAL = "arn:aws:iam::999988887777:root"
@@ -18,10 +23,10 @@ EXTERNAL = "arn:aws:iam::999988887777:root"
 CFG = Config(retries={"max_attempts": 1}, max_pool_connections=50)
 
 
-def client(service, region="us-east-1"):
+def client(service, region="us-east-1", endpoint=None):
     return boto3.client(
         service,
-        endpoint_url=ENDPOINT,
+        endpoint_url=endpoint or ENDPOINT,
         region_name=region,
         aws_access_key_id="test",
         aws_secret_access_key="test",
@@ -545,3 +550,77 @@ for region in REGIONS:
 print("codepipelines:", pipelines)
 
 print("\nseed complete")
+
+
+# ---------------------------------------------------------------- Cognito
+
+# Roles assumed through an identity pool, with the trust policy Cognito
+# actually writes. The third deliberately omits the amr condition, which lets an
+# unauthenticated identity assume the authenticated role.
+def cognito_trust(pool_placeholder, amr=None):
+    cond = {"StringEquals": {"cognito-identity.amazonaws.com:aud": pool_placeholder}}
+    if amr:
+        cond["ForAnyValue:StringLike"] = {"cognito-identity.amazonaws.com:amr": amr}
+    return doc({
+        "Effect": "Allow",
+        "Principal": {"Federated": "cognito-identity.amazonaws.com"},
+        "Action": "sts:AssumeRoleWithWebIdentity",
+        "Condition": cond,
+    })
+
+
+ci = client("cognito-identity")
+ci_roles = client("cognito-identity", endpoint=PROXY_ENDPOINT)
+idp = client("cognito-idp")
+
+user_pool = idp.create_user_pool(PoolName="acme-users")["UserPool"]
+user_pool_client = idp.create_user_pool_client(
+    UserPoolId=user_pool["Id"], ClientName="acme-web")["UserPoolClient"]
+
+POOLS = [
+    # Guest access on: anyone with the pool id gets the unauthenticated role.
+    ("acme-guest-pool", True, "CognitoGuest", "CognitoUser"),
+    ("acme-app-pool", False, None, "CognitoAppUser"),
+]
+
+cognito_pools = {}
+for name, allow_unauth, unauth_role, auth_role in POOLS:
+    pool = ci.create_identity_pool(
+        IdentityPoolName=name,
+        AllowUnauthenticatedIdentities=allow_unauth,
+        CognitoIdentityProviders=[{
+            "ProviderName": "cognito-idp.us-east-1.amazonaws.com/%s" % user_pool["Id"],
+            "ClientId": user_pool_client["ClientId"],
+        }],
+    )
+    pid = pool["IdentityPoolId"]
+    cognito_pools[name] = pid
+
+    roles = {}
+    if auth_role:
+        roles["authenticated"] = make_role(
+            auth_role, cognito_trust(pid, "authenticated"), ["app-read", "secrets-read"])
+    if unauth_role:
+        # No amr condition: an unauthenticated identity can take this too.
+        roles["unauthenticated"] = make_role(
+            unauth_role, cognito_trust(pid), [AWS_MANAGED[1]])
+
+    mapped = make_role("CognitoMapped-%s" % name, cognito_trust(pid, "authenticated"),
+                       [AWS_MANAGED[0]])
+
+    ci_roles.set_identity_pool_roles(
+        IdentityPoolId=pid,
+        Roles=roles,
+        RoleMappings={
+            "cognito-idp.us-east-1.amazonaws.com/%s:%s" % (user_pool["Id"], user_pool_client["ClientId"]): {
+                "Type": "Rules",
+                "AmbiguousRoleResolution": "Deny",
+                "RulesConfiguration": {"Rules": [{
+                    "Claim": "custom:role", "MatchType": "Equals",
+                    "Value": "admin", "RoleARN": mapped,
+                }]},
+            },
+        },
+    )
+
+print("cognito identity pools:", len(cognito_pools), "+ 1 user pool")

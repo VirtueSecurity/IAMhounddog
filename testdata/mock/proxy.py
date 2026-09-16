@@ -26,6 +26,11 @@ FAIL_NODEGROUPS = os.environ.get("MOCK_FAIL_NODEGROUPS", "") == "1"
 
 BATCH_GET_PROJECTS_MAX = 100
 
+# moto returns a 500 for the identity-pool role APIs, so the proxy implements
+# them itself. Without this the Cognito collector has nothing to read and the
+# unauthenticated-role path cannot be exercised at all.
+IDENTITY_POOL_ROLES = {}
+
 HOP_BY_HOP = {"connection", "keep-alive", "transfer-encoding", "upgrade",
               "proxy-authenticate", "proxy-authorization", "te", "trailers"}
 
@@ -72,6 +77,14 @@ class Handler(BaseHTTPRequestHandler):
     def _target(self):
         return self.headers.get("X-Amz-Target", "")
 
+    def _json(self, payload, status=200):
+        body = json.dumps(payload).encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "application/x-amz-json-1.1")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def _reject(self, status, code, message):
         body = json.dumps({"__type": code, "message": message}).encode()
         self.send_response(status)
@@ -96,6 +109,25 @@ class Handler(BaseHTTPRequestHandler):
                     400, "InvalidInputException",
                     "Can not process more than %d projects in one request"
                     % BATCH_GET_PROJECTS_MAX)
+
+        if target.endswith("AWSCognitoIdentityService.SetIdentityPoolRoles"):
+            try:
+                doc = json.loads(body)
+            except ValueError:
+                doc = {}
+            IDENTITY_POOL_ROLES[doc.get("IdentityPoolId", "")] = {
+                "Roles": doc.get("Roles", {}),
+                "RoleMappings": doc.get("RoleMappings", {}),
+            }
+            return self._json({})
+
+        if target.endswith("AWSCognitoIdentityService.GetIdentityPoolRoles"):
+            try:
+                pid = json.loads(body).get("IdentityPoolId", "")
+            except ValueError:
+                pid = ""
+            stored = IDENTITY_POOL_ROLES.get(pid, {"Roles": {}, "RoleMappings": {}})
+            return self._json({"IdentityPoolId": pid, **stored})
 
         if FAIL_NODEGROUPS and "/node-groups" in self.path:
             return self._reject(403, "AccessDeniedException",
