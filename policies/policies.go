@@ -67,6 +67,26 @@ func resourcesToStrings(res interface{}) []string {
 	}
 }
 
+func normalizeAction(act string) (svc, edgeKind string) {
+	parts := strings.SplitN(act, ":", 2)
+
+	svc = strings.ToLower(parts[0])
+	if svc == "" {
+		svc = "*"
+	}
+
+	name := ""
+	if len(parts) == 2 {
+		name = parts[1]
+	}
+
+	edgeKind = strings.ReplaceAll(
+		strings.ReplaceAll(
+			strings.ReplaceAll(svc+name, "-", ""), ":", ""), "*", "AllAccess")
+
+	return svc, edgeKind
+}
+
 func ParsePolicyDoc(out *graph.Output, passRoleEdges map[string]map[string]bool, principalID, policyID string, docStr string, emitActionEdges bool) {
 	var doc PolicyDocument
 
@@ -92,12 +112,7 @@ func ParsePolicyDoc(out *graph.Output, passRoleEdges map[string]map[string]bool,
 		}
 
 		for _, act := range actions {
-			parts := strings.SplitN(act, ":", 2)
-			svc := parts[0]
-			if svc == "" {
-				svc = "*"
-			}
-			edgeKind := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(act, "-", ""), ":", ""), "*", "AllAccess")
+			svc, edgeKind := normalizeAction(act)
 
 			if emitActionEdges {
 				graph.AddNode(out, svc, []string{"AWSResource"}, map[string]interface{}{"name": svc})
@@ -109,7 +124,7 @@ func ParsePolicyDoc(out *graph.Output, passRoleEdges map[string]map[string]bool,
 			}
 
 			//special logic for passrole to create an edge from principal to role that can be passed
-			if edgeKind == "iamPassRole" {
+			if strings.EqualFold(strings.TrimSpace(act), "iam:PassRole") {
 				for _, r := range resourcesToStrings(stmt.Resource) {
 					if r == "" {
 						continue
@@ -215,7 +230,7 @@ func ParseS3PolicyDoc(out *graph.Output, bucketArn, docStr string) {
 			}
 
 			for _, act := range actions {
-				edgeKind := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(act, "-", ""), ":", ""), "*", "AllAccess")
+				_, edgeKind := normalizeAction(act)
 
 				graph.AddEdge(out, edgeKind, start, bucketArn, map[string]interface{}{
 					"name": edgeKind,
