@@ -16,7 +16,7 @@ https://github.com/user-attachments/assets/e60db9c6-75ee-45f9-83fb-0b58f5683ceb
 1. Import `output.json` into BloodHound using Administration > File Ingest
 1. Run queries against the data
 
-To include icons in BloodHound and import the bundled queries into the Cypher tab:
+To include icons in BloodHound and import the bundled queries into the Cypher tab. Images on nodes won't appear properly if setup occurs after import:
 
 1. In BloodHound, go to Profile > API Key Management > Create Token
 1. Run `$ IAMhounddog -setup -url "http://localhost:8080" -id "KEYIDFROMSTEPABOVE" -token "KEYTOKENFROMSTEPABOVE"`
