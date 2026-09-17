@@ -89,10 +89,6 @@ func sendSignedRequest(url string, method string, uri string, keyid string, keyt
 	return nil
 }
 
-// version is empty for an ordinary local build. A release can stamp it with
-// -ldflags "-X main.version=...", and a binary produced by
-// `go install <module>@<version>` reports its module version through the build
-// info below without any stamping.
 var version = ""
 
 func toolVersion() string {
