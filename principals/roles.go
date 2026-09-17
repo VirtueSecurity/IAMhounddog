@@ -73,6 +73,7 @@ func EnumerateRoles(ctx context.Context, client *iam.Client, out *graph.Output, 
 						PolicyName: aws.String(pn),
 					})
 					if err != nil {
+						report.Warn("iam", "GetRolePolicy", "", err)
 						continue
 					}
 					inlineID := aws.ToString(role.Arn) + ":inline/" + pn

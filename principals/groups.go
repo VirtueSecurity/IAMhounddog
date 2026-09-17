@@ -61,6 +61,7 @@ func EnumerateGroups(ctx context.Context, client *iam.Client, out *graph.Output,
 						PolicyName: aws.String(pn),
 					})
 					if err != nil {
+						report.Warn("iam", "GetGroupPolicy", "", err)
 						continue
 					}
 					inlineID := aws.ToString(group.Arn) + ":inline/" + pn

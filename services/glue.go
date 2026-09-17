@@ -46,11 +46,14 @@ func EnumerateGlueRoles(ctx context.Context, cfg aws.Config, out *graph.Output, 
 	for _, region := range regions {
 		client := glue.NewFromConfig(cfg, func(o *glue.Options) { o.Region = region })
 
+		unavailable := false
+
 		jobs := glue.NewGetJobsPaginator(client, &glue.GetJobsInput{})
 		for jobs.HasMorePages() {
 			page, err := jobs.NextPage(ctx)
 			if err != nil {
 				report.Warn("glue", "GetJobs", region, err)
+				unavailable = true
 				break
 			}
 
@@ -67,6 +70,10 @@ func EnumerateGlueRoles(ctx context.Context, cfg aws.Config, out *graph.Output, 
 					"glueVersion": aws.ToString(job.GlueVersion),
 				})
 			}
+		}
+
+		if unavailable {
+			continue
 		}
 
 		endpoints := glue.NewGetDevEndpointsPaginator(client, &glue.GetDevEndpointsInput{})

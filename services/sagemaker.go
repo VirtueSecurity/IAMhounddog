@@ -16,12 +16,15 @@ func EnumerateSageMakerRoles(ctx context.Context, cfg aws.Config, out *graph.Out
 	for _, region := range regions {
 		client := sagemaker.NewFromConfig(cfg, func(o *sagemaker.Options) { o.Region = region })
 
+		unavailable := false
+
 		// notebook instances
 		notebooks := sagemaker.NewListNotebookInstancesPaginator(client, &sagemaker.ListNotebookInstancesInput{})
 		for notebooks.HasMorePages() {
 			page, err := notebooks.NextPage(ctx)
 			if err != nil {
 				report.Warn("sagemaker", "ListNotebookInstances", region, err)
+				unavailable = true
 				break
 			}
 
@@ -50,6 +53,10 @@ func EnumerateSageMakerRoles(ctx context.Context, cfg aws.Config, out *graph.Out
 					})
 				}
 			}
+		}
+
+		if unavailable {
+			continue
 		}
 
 		domains := sagemaker.NewListDomainsPaginator(client, &sagemaker.ListDomainsInput{})

@@ -16,11 +16,14 @@ func EnumerateBedrockAgentCore(ctx context.Context, cfg aws.Config, out *graph.O
 	for _, region := range regions {
 		client := agentcore.NewFromConfig(cfg, func(o *agentcore.Options) { o.Region = region })
 
+		unavailable := false
+
 		runtimes := agentcore.NewListAgentRuntimesPaginator(client, &agentcore.ListAgentRuntimesInput{})
 		for runtimes.HasMorePages() {
 			page, err := runtimes.NextPage(ctx)
 			if err != nil {
 				report.Warn("bedrock-agentcore", "ListAgentRuntimes", region, err)
+				unavailable = true
 				break
 			}
 
@@ -49,6 +52,10 @@ func EnumerateBedrockAgentCore(ctx context.Context, cfg aws.Config, out *graph.O
 					})
 				}
 			}
+		}
+
+		if unavailable {
+			continue
 		}
 
 		gateways := agentcore.NewListGatewaysPaginator(client, &agentcore.ListGatewaysInput{})

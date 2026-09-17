@@ -101,7 +101,7 @@ func classifyIaCBucket(bucketName string) *iacBucket {
 	return nil
 }
 
-func addBucketNode(out *graph.Output, bucketArn, bucketName string, extra map[string]interface{}) {
+func addBucketNode(out *graph.Output, bucketArn, bucketName string, extra map[string]interface{}) *iacBucket {
 	props := map[string]interface{}{
 		"name": bucketName,
 		"arn":  bucketArn,
@@ -111,15 +111,22 @@ func addBucketNode(out *graph.Output, bucketArn, bucketName string, extra map[st
 		props[k] = v
 	}
 
-	if iac := classifyIaCBucket(bucketName); iac != nil {
+	iac := classifyIaCBucket(bucketName)
+	if iac != nil {
 		props["iacTool"] = iac.tool
 		props["iacContent"] = iac.content
 	}
 
 	graph.AddNode(out, bucketArn, []string{"AWSResource"}, props)
+
+	return iac
 }
 
 func EnumerateS3Buckets(ctx context.Context, cfg aws.Config, out *graph.Output, regions []string) {
+	if len(regions) == 0 {
+		return
+	}
+
 	graph.AddNode(out, "s3", []string{"AWSResource"}, map[string]interface{}{"name": "s3"})
 
 	cache := &s3ClientCache{cfg: cfg, clients: make(map[string]*s3.Client)}
@@ -144,9 +151,7 @@ func EnumerateS3Buckets(ctx context.Context, cfg aws.Config, out *graph.Output, 
 
 		region := bucketRegion(ctx, cache, b, baseRegion)
 
-		iac := classifyIaCBucket(bucketName)
-
-		addBucketNode(out, bucketArn, bucketName, map[string]interface{}{"region": region})
+		iac := addBucketNode(out, bucketArn, bucketName, map[string]interface{}{"region": region})
 
 		graph.AddEdge(out, "awsS3Bucket", "s3", bucketArn, map[string]interface{}{
 			"name":   "awsS3Bucket",

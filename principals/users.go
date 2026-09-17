@@ -61,6 +61,7 @@ func EnumerateUsers(ctx context.Context, client *iam.Client, out *graph.Output, 
 						PolicyName: aws.String(pn),
 					})
 					if err != nil {
+						report.Warn("iam", "GetUserPolicy", "", err)
 						continue
 					}
 					inlineID := aws.ToString(user.Arn) + ":inline/" + pn

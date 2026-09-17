@@ -52,8 +52,6 @@ func resourcesToStrings(res interface{}) []string {
 	switch v := res.(type) {
 	case string:
 		return []string{v}
-	case []string:
-		return v
 	case []interface{}:
 		out := make([]string, 0, len(v))
 		for _, e := range v {
