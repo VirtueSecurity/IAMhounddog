@@ -75,6 +75,8 @@ CUSTOMER_POLICIES = {
     "logs-read": allow(["logs:GetLogEvents", "logs:FilterLogEvents"]),
     "sqs-consume": allow(["sqs:ReceiveMessage", "sqs:DeleteMessage"]),
     "sns-publish": allow(["sns:Publish"]),
+    "glue-job-deploy": allow(["glue:UpdateJob", "glue:CreateJob", "glue:StartJobRun",
+                              "glue:CreateDevEndpoint", "glue:GetJobs"]),
 }
 
 # Cases that specifically exercise parser behaviour. Names are referenced by
@@ -133,7 +135,7 @@ GROUPS = {
     "Operations": ["ec2-ops", "rds-ops", "logs-read"],
     "SRE": ["ec2-ops", "eks-admin", "cfn-deploy"],
     "Security": ["iam-audit", "logs-read"],
-    "DataEngineering": ["app-read", "sqs-consume", "sfn-exec"],
+    "DataEngineering": ["app-read", "sqs-consume", "sfn-exec", "glue-job-deploy"],
     "QA": ["app-read", "logs-read"],
     "Support": ["logs-read"],
     "Contractors": ["app-read"],
@@ -728,3 +730,44 @@ sm_proxy.create_user_profile(
     UserSettings={"ExecutionRole": roles["SageMakerNotebookAdmin"]})
 
 print("sagemaker: 2 notebooks, 1 studio domain, 1 user profile, 2 models, 1 pipeline")
+
+
+# ----------------------------------------------------------------------- Glue
+
+# glue:UpdateJob rewrites the script an existing job runs, so the job's role is
+# reachable without iam:PassRole. Glue also accepts either a role name or an
+# ARN, so one job here is configured with a bare name to exercise resolution.
+gl = client("glue")
+
+glue_trust = service_trust("glue")
+
+GLUE_ROLES = {
+    "GlueJobRole": [AWS_MANAGED[0]],
+    "GlueCrawlerRole": ["app-read"],
+    "GlueDevEndpointRole": ["app-read", "secrets-read"],
+}
+for name, managed in GLUE_ROLES.items():
+    roles[name] = make_role(name, glue_trust, managed)
+
+gl.create_database(DatabaseInput={"Name": "acme_lake"})
+
+# Role given as a full ARN.
+gl.create_job(Name="acme-etl", Role=roles["GlueJobRole"],
+              Command={"Name": "glueetl", "ScriptLocation": "s3://acme-app-data/etl.py"})
+
+# Role given as a bare name that matches an enumerated role: must resolve.
+gl.create_job(Name="acme-nightly", Role="GlueJobRole",
+              Command={"Name": "glueetl", "ScriptLocation": "s3://acme-app-data/nightly.py"})
+
+# Role given as a bare name with no matching role: must land on a stub.
+gl.create_job(Name="acme-orphan", Role="GlueDeletedRole",
+              Command={"Name": "glueetl", "ScriptLocation": "s3://acme-app-data/orphan.py"})
+
+gl.create_crawler(Name="acme-crawler", Role=roles["GlueCrawlerRole"],
+                  DatabaseName="acme_lake",
+                  Targets={"S3Targets": [{"Path": "s3://acme-app-data/"}]})
+
+gl.create_dev_endpoint(EndpointName="acme-dev", RoleArn=roles["GlueDevEndpointRole"],
+                       NumberOfNodes=2)
+
+print("glue: 3 jobs, 1 crawler, 1 dev endpoint")

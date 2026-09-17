@@ -35,6 +35,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/bedrockagentcorecontrol v1.68.0
 	github.com/aws/aws-sdk-go-v2/service/cognitoidentity v1.42.0
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.241.0
+	github.com/aws/aws-sdk-go-v2/service/glue v1.159.0
 	github.com/aws/aws-sdk-go-v2/service/iam v1.45.0
 	github.com/aws/aws-sdk-go-v2/service/lambda v1.75.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.90.2

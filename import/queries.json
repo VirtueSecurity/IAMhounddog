@@ -26,7 +26,7 @@
     },
     {
         "name": "Roles Attached to Services",
-        "query": "MATCH p = (:AWSResource)-[:awsAgentCoreBrowserRole|:awsAgentCoreCodeInterpreterRole|:awsAgentCoreGatewayRole|:awsAgentCoreRuntimeRole|:awsCloudFormationStackRole|:awsCodeBuildProjectRole|:awsCodePipelineRole|:awsCognitoAuthenticatedRole|:awsCognitoMappedRole|:awsCognitoUnauthenticatedRole|:awsEc2InstanceRole|:awsEcsTaskExecutionRole|:awsEcsTaskRole|:awsEksClusterRole|:awsEksNodeRole|:awsLambdaInstanceRole|:awsRdsClusterRole|:awsRdsInstanceRole|:awsRdsMonitoringRole|:awsSageMakerDomainRole|:awsSageMakerModelRole|:awsSageMakerNotebookRole|:awsSageMakerPipelineRole|:awsSageMakerUserProfileRole|:awsStateMachineRole]->(r:AWSRole) OPTIONAL MATCH q = (r)-[:awsAttachedPolicy]->(:AWSPolicy) RETURN p, q LIMIT 1000",
+        "query": "MATCH p = (:AWSResource)-[:awsAgentCoreBrowserRole|:awsAgentCoreCodeInterpreterRole|:awsAgentCoreGatewayRole|:awsAgentCoreRuntimeRole|:awsCloudFormationStackRole|:awsCodeBuildProjectRole|:awsCodePipelineRole|:awsCognitoAuthenticatedRole|:awsCognitoMappedRole|:awsCognitoUnauthenticatedRole|:awsEc2InstanceRole|:awsGlueCrawlerRole|:awsGlueDevEndpointRole|:awsGlueJobRole|:awsEcsTaskExecutionRole|:awsEcsTaskRole|:awsEksClusterRole|:awsEksNodeRole|:awsLambdaInstanceRole|:awsRdsClusterRole|:awsRdsInstanceRole|:awsRdsMonitoringRole|:awsSageMakerDomainRole|:awsSageMakerModelRole|:awsSageMakerNotebookRole|:awsSageMakerPipelineRole|:awsSageMakerUserProfileRole|:awsStateMachineRole]->(r:AWSRole) OPTIONAL MATCH q = (r)-[:awsAttachedPolicy]->(:AWSPolicy) RETURN p, q LIMIT 1000",
         "description": "Identify all roles attached to a service"
     },
     {
@@ -108,5 +108,10 @@
         "name": "Wildcard Trust Conditions",
         "query": "MATCH p = (n)-[q:awsAssumeRoleAllowed]->(z:AWSRole) WHERE (n:AWSPrincipal OR n:AWSRole OR n:AWSUser) AND q.condition CONTAINS '*' RETURN p LIMIT 1000",
         "description": "Identify all trust relationships with a wildcard in their condition, including in-account role to role"
+    },
+    {
+        "name": "Paths to Glue Roles via Job Modification",
+        "query": "MATCH p = (n)-[:awsMemberOf|:awsAttachedPolicy*1..2]->(pol:AWSPolicy)-[a]->(g:AWSResource)-[:awsGlueJobRole|:awsGlueDevEndpointRole|:awsGlueCrawlerRole]->(r:AWSRole) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND toLower(g.name) = 'glue' AND (type(a) CONTAINS 'UpdateJob' OR type(a) CONTAINS 'CreateJob' OR type(a) CONTAINS 'CreateDevEndpoint' OR type(a) = 'glueAllAccess') RETURN p LIMIT 1000",
+        "description": "Identify principals that can rewrite a Glue job"
     }
 ]

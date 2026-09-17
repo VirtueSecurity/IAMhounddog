@@ -56,6 +56,7 @@ IAMhounddog identifies relationships across:
     - CodePipeline
     - Bedrock AgentCore
     - SageMaker
+    - Glue
 - Cognito identity pools
 - S3 buckets and bucket policies
 

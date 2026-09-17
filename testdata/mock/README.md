@@ -41,16 +41,19 @@ IAMhounddog --AWS_ENDPOINT_URL--> proxy.py :5110 --> moto :5111
 
 - **`seed.py`** builds the account: 12 groups, 42 users, 61 roles, 26 buckets,
   30 EC2 instances over 6 instance profiles, 240 ECS task definition revisions,
-  150 CodeBuild projects, plus Lambda, EKS, RDS, Step Functions, CloudFormation
-  and CodePipeline. It is deterministic; the same seed must produce the same
-  graph or the comparison means nothing.
+  150 CodeBuild projects, plus Lambda, EKS, RDS, Step Functions, CloudFormation,
+  CodePipeline, Cognito, Bedrock AgentCore, SageMaker and Glue. It is
+  deterministic; the same seed must produce the same graph or the comparison
+  means nothing.
 
   It also plants specific parser cases, named `case-*` so they are greppable in
   the output: a single-object `Statement`, a `+` inside an ARN, a lowercase
   `iam:passrole`, a `NotAction` statement, a wildcard `PassRole` target, an
   explicit `Deny`, a trust open to `{"AWS": "*"}`, a bucket policy naming a role
   the account already enumerated, and one external account that appears in both
-  a bucket policy and a trust policy.
+  a bucket policy and a trust policy. Glue is seeded with its role given three
+  ways, as an ARN, as a bare name matching an enumerated role, and as a bare
+  name matching nothing, because Glue accepts either form.
 
 - **`proxy.py`** does two things moto cannot. It repairs responses the Go SDK
   rejects (moto serialises CodePipeline timestamps as strings where the API
@@ -58,11 +61,15 @@ IAMhounddog --AWS_ENDPOINT_URL--> proxy.py :5110 --> moto :5111
   limits moto does not model, so the code that exists to handle them actually
   runs: `BatchGetProjects` rejects more than 100 names, and
   `--fail-nodegroups` makes `eks:ListNodegroups` return `AccessDenied`. It also
-  implements `Get`/`SetIdentityPoolRoles`, which moto answers with a 500, so the
-  Cognito collector has something to read. The seeder therefore takes two
-  endpoints: moto for most calls, the proxy for those. Only those calls go
-  through the proxy because routing S3 through it breaks moto's region
-  inference on `CreateBucket`.
+  implements the APIs moto answers with a 500 outright: the Cognito identity
+  pool role APIs, AgentCore code interpreters and browsers, and SageMaker user
+  profiles. Those stores are keyed by the region in the request's credential
+  scope, so a resource created in one region is not returned in every region,
+  which would otherwise mask a duplicate-edge bug in a collector.
+
+  The seeder therefore takes two endpoints: moto for most calls, the proxy for
+  those. Only those calls go through the proxy because routing S3 through it
+  breaks moto's region inference on `CreateBucket`.
 
 - **`compare.py`** groups the delta. A raw diff is useless here because most of
   the change is intended. Policy action edges are summarised in aggregate
@@ -96,17 +103,6 @@ Every difference should be attributable. Anything that is not is a regression.
 `NextPage` leaves the paginator untouched, so `HasMorePages` stays true and the
 loop re-issues the same failing call forever. `run.sh` kills it after 120s and
 says so. The current tree exits immediately having made one call.
-
-## Known gaps
-
-moto returns a 500 for `CreateCodeInterpreter`, `CreateBrowser` and the
-SageMaker user profile APIs, so those three collector paths are not exercised:
-`ListCodeInterpreters`, `ListBrowsers` and `ListUserProfiles`.
-
-Those same calls dominate the run time. The SDK treats a 500 as retryable and
-backs off, so three failing operations across two regions cost roughly fifteen
-seconds of an eighteen second run. A real account answers them normally, and
-`proxy.py` could stub them the way it already stubs the Cognito role APIs.
 
 ## Non-determinism
 
