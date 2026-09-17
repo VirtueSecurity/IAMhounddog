@@ -106,7 +106,14 @@ says so. The current tree exits immediately having made one call.
 
 ## Non-determinism
 
-moto mints stack ids and EC2 instance ids fresh on every seed, so those appear
-in the graph and differ between runs even when nothing in the tool changed.
-`compare.py` scrubs them before comparing properties. Everything else is
-deterministic: two runs of an unchanged tree must produce a zero-delta report.
+moto mints some identifiers fresh on every seed, so they differ between runs
+even when nothing in the tool changed: stack ids, EC2 instance ids, and Cognito
+identity pool ids. The pool ids matter most because the tool uses them directly
+as node ids, so they reach the node set and every edge endpoint, not just
+properties.
+
+`compare.py` maps every node id to a stable key before comparing, and applies
+the same mapping to edge endpoints. Where scrubbing alone would collapse two
+different nodes onto one key, the node's name disambiguates them, so two
+identity pools stay two pools. Everything else is deterministic: two runs of an
+unchanged tree must produce a zero-delta report.

@@ -31,8 +31,33 @@ def load(path):
         return json.load(fh)["graph"]
 
 
-def edge_key(e):
-    return (e["kind"], e["start"]["value"], e["end"]["value"])
+def aliases(graph):
+    """Map every node id to a key that is stable across seeds.
+
+    Some ids are minted by moto rather than chosen by the seed, notably Cognito
+    identity pool ids, which the tool uses directly as node ids. Scrubbing alone
+    would collapse two different pools onto one key, so the node's name
+    disambiguates them.
+    """
+    out = {}
+    for n in graph["nodes"]:
+        raw = n["id"]
+        key = scrub(raw)
+        if key != raw:
+            name = (n.get("properties") or {}).get("name", "")
+            if name:
+                key = "%s [%s]" % (key, name)
+        out[raw] = key
+    return out
+
+
+def edge_key(e, alias=None):
+    alias = alias or {}
+
+    def side(v):
+        return alias.get(v, scrub(v))
+
+    return (e["kind"], side(e["start"]["value"]), side(e["end"]["value"]))
 
 
 def counts(items, key):
@@ -87,17 +112,19 @@ def main(base_path, cur_path, examples=4):
     b_action, b_struct = split(base)
     c_action, c_struct = split(cur)
 
+    ba, ca = aliases(base), aliases(cur)
+
     section("POLICY ACTION EDGES (aggregate)")
     table([
         ["total", len(b_action), len(c_action), len(c_action) - len(b_action)],
         ["distinct kinds", len({e["kind"] for e in b_action}),
          len({e["kind"] for e in c_action}),
          len({e["kind"] for e in c_action}) - len({e["kind"] for e in b_action})],
-        ["distinct triples", len({edge_key(e) for e in b_action}),
-         len({edge_key(e) for e in c_action}),
-         len({edge_key(e) for e in c_action}) - len({edge_key(e) for e in b_action})],
+        ["distinct triples", len({edge_key(e, ba) for e in b_action}),
+         len({edge_key(e, ca) for e in c_action}),
+         len({edge_key(e, ca) for e in c_action}) - len({edge_key(e, ba) for e in b_action})],
     ], ["", "baseline", "current", "delta"])
-    dropped = {edge_key(e) for e in b_action} - {edge_key(e) for e in c_action}
+    dropped = {edge_key(e, ba) for e in b_action} - {edge_key(e, ca) for e in c_action}
     print("\n  unique policy->service triples lost: %d" % len(dropped))
     for k in sorted(dropped)[:examples]:
         print("    %s  %s -> %s" % k)
@@ -111,8 +138,8 @@ def main(base_path, cur_path, examples=4):
     table(rows, ["edge kind", "baseline", "current", "delta"])
 
     section("NODE IDS")
-    bids = {n["id"] for n in base["nodes"]}
-    cids = {n["id"] for n in cur["nodes"]}
+    bids = {ba[n["id"]] for n in base["nodes"]}
+    cids = {ca[n["id"]] for n in cur["nodes"]}
     for label, ids in [("only in current", cids - bids), ("only in baseline", bids - cids)]:
         print("\n  %s: %d" % (label, len(ids)))
         for i in sorted(ids)[:examples * 3]:
@@ -128,8 +155,8 @@ def main(base_path, cur_path, examples=4):
             ("  e.g. " + ", ".join(list(dupes)[:3])) if dupes else ""))
 
     section("EDGES (unique triples)")
-    bt = set(edge_key(e) for e in base["edges"])
-    ct = set(edge_key(e) for e in cur["edges"])
+    bt = set(edge_key(e, ba) for e in base["edges"])
+    ct = set(edge_key(e, ca) for e in cur["edges"])
     for label, t in [("only in current", ct - bt), ("only in baseline", bt - ct)]:
         by_kind = collections.Counter(k for k, _, _ in t)
         print("\n  %s: %d unique triples" % (label, len(t)))
@@ -139,8 +166,8 @@ def main(base_path, cur_path, examples=4):
                 print("        %s -> %s" % (ek[1], ek[2]))
 
     section("PROPERTY CHANGES ON SHARED NODES")
-    bn = {n["id"]: n for n in base["nodes"]}
-    cnodes = {n["id"]: n for n in cur["nodes"]}
+    bn = {ba[n["id"]]: n for n in base["nodes"]}
+    cnodes = {ca[n["id"]]: n for n in cur["nodes"]}
     changed = collections.Counter()
     samples = {}
     for i in bids & cids:

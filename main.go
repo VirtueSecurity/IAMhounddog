@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -88,7 +89,34 @@ func sendSignedRequest(url string, method string, uri string, keyid string, keyt
 	return nil
 }
 
+// version is empty for an ordinary local build. A release can stamp it with
+// -ldflags "-X main.version=...", and a binary produced by
+// `go install <module>@<version>` reports its module version through the build
+// info below without any stamping.
+var version = ""
+
+func toolVersion() string {
+	if version != "" {
+		return version
+	}
+
+	if info, ok := debug.ReadBuildInfo(); ok {
+		if v := info.Main.Version; v != "" && v != "(devel)" {
+			return v
+		}
+	}
+
+	return "(devel)"
+}
+
 func main() {
+	flag.Usage = func() {
+		out := flag.CommandLine.Output()
+		fmt.Fprintf(out, "IAMhounddog %s\n\n", toolVersion())
+		fmt.Fprintf(out, "Usage of %s:\n", os.Args[0])
+		flag.PrintDefaults()
+	}
+
 	profile := flag.String("profile", "", "(Optional) AWS profile to use (uses env vars if not provided)")
 	regionsFlag := flag.String("regions", "", "(Optional) Comma-separated list of AWS regions (tries all regions if not provided). Use -regions describe to use AWS described regions enabled for the account.")
 	outputFlag := flag.String("output", "output.json", "(Optional) Output file name.")
