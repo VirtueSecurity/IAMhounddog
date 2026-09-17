@@ -624,3 +624,49 @@ for name, allow_unauth, unauth_role, auth_role in POOLS:
     )
 
 print("cognito identity pools:", len(cognito_pools), "+ 1 user pool")
+
+
+# ------------------------------------------------------- Bedrock AgentCore
+
+# An agent takes its instructions from input, so an over-permissioned execution
+# role here is reachable by prompt injection rather than needing a code
+# execution bug. The first runtime deliberately runs as an admin.
+ac = client("bedrock-agentcore-control")
+
+agentcore_trust = service_trust("bedrock-agentcore")
+
+AGENT_ROLES = {
+    "AgentCoreRuntimeAdmin": [AWS_MANAGED[0]],
+    "AgentCoreRuntimeScoped": ["app-read", "secrets-read"],
+    "AgentCoreGatewayRole": ["lambda-deploy"],
+}
+for name, managed in AGENT_ROLES.items():
+    roles[name] = make_role(name, agentcore_trust, managed)
+
+RUNTIMES = [("acme_support_agent", "AgentCoreRuntimeAdmin"),
+            ("acme_report_agent", "AgentCoreRuntimeScoped")]
+
+agentcore_runtimes = 0
+for name, role in RUNTIMES:
+    ac.create_agent_runtime(
+        agentRuntimeName=name,
+        roleArn=roles[role],
+        agentRuntimeArtifact={"containerConfiguration": {
+            "containerUri": "%s.dkr.ecr.us-east-1.amazonaws.com/agents:latest" % ACCOUNT}},
+        networkConfiguration={"networkMode": "PUBLIC"},
+    )
+    agentcore_runtimes += 1
+
+ac.create_gateway(
+    name="acme-tool-gateway",
+    roleArn=roles["AgentCoreGatewayRole"],
+    protocolType="MCP",
+    authorizerType="CUSTOM_JWT",
+    authorizerConfiguration={"customJWTAuthorizer": {
+        "discoveryUrl": "https://example.com/.well-known/openid-configuration",
+        "allowedClients": ["acme-client"]}},
+)
+
+# moto returns a 500 for CreateCodeInterpreter and CreateBrowser, so those two
+# collector paths are not exercised here.
+print("agentcore runtimes:", agentcore_runtimes, "+ 1 gateway")

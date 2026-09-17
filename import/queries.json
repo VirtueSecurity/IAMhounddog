@@ -83,5 +83,15 @@
         "name": "Identities Tied to Cognito",
         "query": "MATCH p = (n:AWSResource)-[:awsCognitoAuthenticatedRole|:awsCognitoUnauthenticatedRole]->(r)-[]->(:AWSPolicy) RETURN p LIMIT 1000",
         "description": "Identify all identities tied to Cognito pools"
+    },
+    {
+        "name": "All AgentCore Roles",
+        "query": "MATCH p = (n:AWSResource)-[:awsAgentCoreRuntimeRole|:awsAgentCoreGatewayRole|:awsAgentCoreCodeInterpreterRole|:awsAgentCoreBrowserRole]->(r:AWSRole) WHERE toLower(n.name) = 'bedrock-agentcore' RETURN p LIMIT 1000",
+        "description": "Identify all identities tied to AgentCore"
+    },
+    {
+        "name": "Paths to AgentCore Roles",
+        "query": "MATCH (h:AWSResource)-[:awsAgentCoreRuntimeRole|:awsAgentCoreGatewayRole|:awsAgentCoreCodeInterpreterRole|:awsAgentCoreBrowserRole]->(t:AWSRole) WHERE toLower(h.name) = 'bedrock-agentcore' MATCH p = allShortestPaths((s)-[*1..]->(t)) WHERE (s:AWSUser OR s:AWSRole OR s:AWSGroup OR s:AWSPrincipal) AND s <> t RETURN p LIMIT 1000",
+        "description": "Identify all paths to AgentCore"
     }
 ]

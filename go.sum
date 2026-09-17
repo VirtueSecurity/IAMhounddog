@@ -16,6 +16,8 @@ github.com/aws/aws-sdk-go-v2/internal/ini v1.8.3 h1:bIqFDwgGXXN1Kpp99pDOdKMTTb5d
 github.com/aws/aws-sdk-go-v2/internal/ini v1.8.3/go.mod h1:H5O/EsxDWyU+LP/V8i5sm8cxoZgc2fdNR9bxlOFrQTo=
 github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.13 h1:eg/WYAa12vqTphzIdWMzqYRVKKnCboVPRlvaybNCqPA=
 github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.13/go.mod h1:/FDdxWhz1486obGrKKC1HONd7krpk38LBt+dutLcN9k=
+github.com/aws/aws-sdk-go-v2/service/bedrockagentcorecontrol v1.68.0 h1:GjTVTMwKa3pW12fSYsJoY2T3/NUOxWaPQ2FUHRwky9E=
+github.com/aws/aws-sdk-go-v2/service/bedrockagentcorecontrol v1.68.0/go.mod h1:zgWVuxOJtLQ188G6hXAFSHwofDZ5WWO4Akz1GDCeQdE=
 github.com/aws/aws-sdk-go-v2/service/cloudformation v1.64.0 h1:zkywcvvuwJcdNUErYJ3JaujgTYy8iOqTZnMJtbt5GQo=
 github.com/aws/aws-sdk-go-v2/service/cloudformation v1.64.0/go.mod h1:CSZ4pTMdDdwePgGxMo5KOfOw+I0r0cOwLsyULTjFuUc=
 github.com/aws/aws-sdk-go-v2/service/codebuild v1.66.0 h1:Tm4WvXnZ+tAlYB0W+hKi53reoQpUKr7/IiG/8zPYfOE=

@@ -279,6 +279,9 @@ func main() {
 
 		fmt.Println("\tEnumerating cognito")
 		services.EnumerateCognitoIdentityPools(ctx, cfg, &out, regions)
+
+		fmt.Println("\tEnumerating bedrock agentcore")
+		services.EnumerateBedrockAgentCore(ctx, cfg, &out, regions)
 	}
 
 	report.Flush()

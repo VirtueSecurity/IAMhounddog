@@ -97,6 +97,13 @@ Every difference should be attributable. Anything that is not is a regression.
 loop re-issues the same failing call forever. `run.sh` kills it after 120s and
 says so. The current tree exits immediately having made one call.
 
+## Known gaps
+
+moto returns a 500 for `CreateCodeInterpreter` and `CreateBrowser`, so those two
+AgentCore collector paths are not exercised. The failing `ListCodeInterpreters`
+and `ListBrowsers` calls also dominate the run time, because the SDK treats a
+500 as retryable and backs off; a real account answers them normally.
+
 ## Non-determinism
 
 moto mints stack ids and EC2 instance ids fresh on every seed, so those appear
