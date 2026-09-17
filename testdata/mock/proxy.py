@@ -31,6 +31,13 @@ BATCH_GET_PROJECTS_MAX = 100
 # unauthenticated-role path cannot be exercised at all.
 IDENTITY_POOL_ROLES = {}
 
+# moto also returns a 500 for these, and because the SDK treats 500 as retryable
+# each one costs backoff on every region. Stubbing them keeps the run fast and
+# actually exercises the collector paths that read them.
+CODE_INTERPRETERS = {}
+BROWSERS = {}
+USER_PROFILES = {}
+
 HOP_BY_HOP = {"connection", "keep-alive", "transfer-encoding", "upgrade",
               "proxy-authenticate", "proxy-authorization", "te", "trailers"}
 
@@ -76,6 +83,16 @@ class Handler(BaseHTTPRequestHandler):
 
     def _target(self):
         return self.headers.get("X-Amz-Target", "")
+
+    def _region(self):
+        # Credential=<key>/<date>/<region>/<service>/aws4_request
+        auth = self.headers.get("Authorization", "")
+        for part in auth.split():
+            if part.startswith("Credential="):
+                fields = part.split("=", 1)[1].split("/")
+                if len(fields) > 2:
+                    return fields[2]
+        return "us-east-1"
 
     def _json(self, payload, status=200):
         body = json.dumps(payload).encode()
@@ -128,6 +145,58 @@ class Handler(BaseHTTPRequestHandler):
                 pid = ""
             stored = IDENTITY_POOL_ROLES.get(pid, {"Roles": {}, "RoleMappings": {}})
             return self._json({"IdentityPoolId": pid, **stored})
+
+        # --- AgentCore code interpreters and browsers (REST-JSON) ----------
+        for kind, store, idKey, arnKey, listKey in (
+            ("code-interpreters", CODE_INTERPRETERS, "codeInterpreterId",
+             "codeInterpreterArn", "codeInterpreterSummaries"),
+            ("browsers", BROWSERS, "browserId", "browserArn", "browserSummaries"),
+        ):
+            path = self.path.split("?")[0].rstrip("/")
+
+            if path.endswith("/" + kind) or path == "/" + kind:
+                region = self._region()
+
+                if self.command == "PUT":
+                    doc = json.loads(body or b"{}")
+                    ident = "%s-%04d" % (kind.rstrip("s"), len(store) + 1)
+                    store[(region, ident)] = {
+                        idKey: ident,
+                        arnKey: "arn:aws:bedrock-agentcore:%s:123456789012:%s/%s" % (region, kind, ident),
+                        "name": doc.get("name", ident),
+                        "executionRoleArn": doc.get("executionRoleArn", ""),
+                        "status": "READY",
+                    }
+                    return self._json(store[(region, ident)])
+
+                if self.command == "POST":
+                    summaries = [{k: v for k, v in item.items() if k != "executionRoleArn"}
+                                 for (r, _), item in store.items() if r == region]
+                    return self._json({listKey: summaries})
+
+            if "/" + kind + "/" in path and self.command == "GET":
+                return self._json(store.get((self._region(), path.rsplit("/", 1)[-1]), {}))
+
+        # --- SageMaker user profiles (JSON 1.1) ----------------------------
+        if target in ("SageMaker.CreateUserProfile", "SageMaker.DescribeUserProfile",
+                      "SageMaker.ListUserProfiles"):
+            doc = json.loads(body or b"{}")
+            key = (self._region(), doc.get("DomainId", ""), doc.get("UserProfileName", ""))
+
+            if target.endswith(".CreateUserProfile"):
+                USER_PROFILES[key] = doc
+                return self._json({"UserProfileArn":
+                                   "arn:aws:sagemaker:%s:123456789012:user-profile/%s/%s" % key})
+
+            if target.endswith(".DescribeUserProfile"):
+                stored = USER_PROFILES.get(key, {})
+                return self._json({"DomainId": key[1], "UserProfileName": key[2],
+                                   "UserSettings": stored.get("UserSettings", {})})
+
+            if target.endswith(".ListUserProfiles"):
+                return self._json({"UserProfiles": [
+                    {"DomainId": d, "UserProfileName": u}
+                    for r, d, u in USER_PROFILES if r == key[0]]})
 
         if FAIL_NODEGROUPS and "/node-groups" in self.path:
             return self._reject(403, "AccessDeniedException",

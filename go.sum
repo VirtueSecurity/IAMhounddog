@@ -48,6 +48,8 @@ github.com/aws/aws-sdk-go-v2/service/rds v1.103.0 h1:OWsmICx9jHtBVrgYwYb+2q0iVSP
 github.com/aws/aws-sdk-go-v2/service/rds v1.103.0/go.mod h1:tUKTkGAlJo0Gs4t0Z46vaSGD6H1Z6RvtuF03mZY+tPk=
 github.com/aws/aws-sdk-go-v2/service/s3 v1.90.2 h1:DhdbtDl4FdNlj31+xiRXANxEE+eC7n8JQz+/ilwQ8Uc=
 github.com/aws/aws-sdk-go-v2/service/s3 v1.90.2/go.mod h1:+wArOOrcHUevqdto9k1tKOF5++YTe9JEcPSc9Tx2ZSw=
+github.com/aws/aws-sdk-go-v2/service/sagemaker v1.277.0 h1:WvkLFDBNqogsNrYv6dKyjvgEY2uGm5d+gT5ZmUtLvw8=
+github.com/aws/aws-sdk-go-v2/service/sagemaker v1.277.0/go.mod h1:mzfcstfqj2Z+yQ84BPDzE+gVNPeo/KJ21pGTqB4QKyc=
 github.com/aws/aws-sdk-go-v2/service/sfn v1.38.0 h1:qDg+pW4hxuM1zlixvZy3EyRxGiy4FknvKwfYHsUGvYw=
 github.com/aws/aws-sdk-go-v2/service/sfn v1.38.0/go.mod h1:UXg+xZNhGCuhG8tg8Qj9XBH3qRA5WgmJkelLEyOassI=
 github.com/aws/aws-sdk-go-v2/service/sso v1.27.0 h1:j7/jTOjWeJDolPwZ/J4yZ7dUsxsWZEsxNwH5O7F8eEA=

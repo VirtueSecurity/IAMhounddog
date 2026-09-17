@@ -55,11 +55,6 @@
         "description": "Identify all paths with edges that allow you to modify resources"
     },
     {
-        "name": "Principals with Wildcard Conditions",
-        "query": "MATCH p = (n:AWSPrincipal)-[q:awsAssumeRoleAllowed]->(z:AWSRole) WHERE q.condition CONTAINS '*' RETURN p LIMIT 1000",
-        "description": "Identify all principals with wildcard conditions"
-    },
-    {
         "name": "Resource Relationships Excluding AWS",
         "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSResource)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) and NOT toLower(n.name) CONTAINS 'aws' RETURN p LIMIT 1000",
         "description": "Identify all paths for resources"
@@ -93,5 +88,25 @@
         "name": "Paths to AgentCore Roles",
         "query": "MATCH (h:AWSResource)-[:awsAgentCoreRuntimeRole|:awsAgentCoreGatewayRole|:awsAgentCoreCodeInterpreterRole|:awsAgentCoreBrowserRole]->(t:AWSRole) WHERE toLower(h.name) = 'bedrock-agentcore' MATCH p = allShortestPaths((s)-[*1..]->(t)) WHERE (s:AWSUser OR s:AWSRole OR s:AWSGroup OR s:AWSPrincipal) AND s <> t RETURN p LIMIT 1000",
         "description": "Identify all paths to AgentCore"
+    },
+    {
+        "name": "All SageMaker Roles",
+        "query": "MATCH p = (n:AWSResource)-[:awsSageMakerNotebookRole|:awsSageMakerDomainRole|:awsSageMakerUserProfileRole|:awsSageMakerModelRole|:awsSageMakerPipelineRole]->(r:AWSRole) WHERE toLower(n.name) = 'sagemaker' RETURN p LIMIT 1000",
+        "description": "Identify all SageMaker roles"
+    },
+    {
+        "name": "SageMaker Notebooks with Administrative Roles",
+        "query": "MATCH p = (n:AWSResource)-[:awsSageMakerNotebookRole]->(r:AWSRole)-[:awsAttachedPolicy]->(z:AWSPolicy) WHERE toLower(n.name) = 'sagemaker' AND (toLower(z.name) CONTAINS 'administratoraccess' OR toLower(z.name) CONTAINS 'poweruseraccess') RETURN p LIMIT 1000",
+        "description": "Identify notebooks with administrative roles"
+    },
+    {
+        "name": "Access to IaC Buckets",
+        "query": "MATCH p = allShortestPaths((n)-[*..]->(z:AWSResource)) WHERE (n:AWSUser OR n:AWSRole OR n:AWSGroup OR n:AWSPrincipal) AND z.iacTool IS NOT NULL RETURN p LIMIT 1000",
+        "description": "Identify all paths to IaC buckets"
+    },
+    {
+        "name": "Wildcard Trust Conditions",
+        "query": "MATCH p = (n)-[q:awsAssumeRoleAllowed]->(z:AWSRole) WHERE (n:AWSPrincipal OR n:AWSRole OR n:AWSUser) AND q.condition CONTAINS '*' RETURN p LIMIT 1000",
+        "description": "Identify all trust relationships with a wildcard in their condition, including in-account role to role"
     }
 ]

@@ -282,6 +282,9 @@ func main() {
 
 		fmt.Println("\tEnumerating bedrock agentcore")
 		services.EnumerateBedrockAgentCore(ctx, cfg, &out, regions)
+
+		fmt.Println("\tEnumerating sagemaker")
+		services.EnumerateSageMakerRoles(ctx, cfg, &out, regions)
 	}
 
 	report.Flush()

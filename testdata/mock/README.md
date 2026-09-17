@@ -99,10 +99,14 @@ says so. The current tree exits immediately having made one call.
 
 ## Known gaps
 
-moto returns a 500 for `CreateCodeInterpreter` and `CreateBrowser`, so those two
-AgentCore collector paths are not exercised. The failing `ListCodeInterpreters`
-and `ListBrowsers` calls also dominate the run time, because the SDK treats a
-500 as retryable and backs off; a real account answers them normally.
+moto returns a 500 for `CreateCodeInterpreter`, `CreateBrowser` and the
+SageMaker user profile APIs, so those three collector paths are not exercised:
+`ListCodeInterpreters`, `ListBrowsers` and `ListUserProfiles`.
+
+Those same calls dominate the run time. The SDK treats a 500 as retryable and
+backs off, so three failing operations across two regions cost roughly fifteen
+seconds of an eighteen second run. A real account answers them normally, and
+`proxy.py` could stub them the way it already stubs the Cognito role APIs.
 
 ## Non-determinism
 

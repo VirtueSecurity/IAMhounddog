@@ -669,4 +669,62 @@ ac.create_gateway(
 
 # moto returns a 500 for CreateCodeInterpreter and CreateBrowser, so those two
 # collector paths are not exercised here.
-print("agentcore runtimes:", agentcore_runtimes, "+ 1 gateway")
+# moto 500s on these two, so they are created against the proxy, which
+# implements them.
+ac_proxy = client("bedrock-agentcore-control", endpoint=PROXY_ENDPOINT)
+ac_proxy.create_code_interpreter(
+    name="acme_ci", executionRoleArn=roles["AgentCoreRuntimeScoped"],
+    networkConfiguration={"networkMode": "PUBLIC"})
+ac_proxy.create_browser(
+    name="acme_browser", executionRoleArn=roles["AgentCoreRuntimeAdmin"],
+    networkConfiguration={"networkMode": "PUBLIC"})
+
+print("agentcore runtimes:", agentcore_runtimes, "+ 1 gateway, 1 code interpreter, 1 browser")
+
+
+# ------------------------------------------------------------------ SageMaker
+
+# A notebook's role is reachable by anyone holding
+# sagemaker:CreatePresignedNotebookInstanceUrl, with no PassRole and no code
+# execution bug, so the first notebook deliberately runs as an admin.
+sm = client("sagemaker")
+
+sagemaker_trust = service_trust("sagemaker")
+
+SAGEMAKER_ROLES = {
+    "SageMakerNotebookAdmin": [AWS_MANAGED[0]],
+    "SageMakerNotebookScoped": ["app-read"],
+    "SageMakerStudioExec": ["app-read", "secrets-read"],
+    "SageMakerModelExec": ["app-read"],
+    "SageMakerPipelineExec": ["app-read", "app-write"],
+}
+for name, managed in SAGEMAKER_ROLES.items():
+    roles[name] = make_role(name, sagemaker_trust, managed)
+
+for nb, role in [("acme-research-nb", "SageMakerNotebookAdmin"),
+                 ("acme-reporting-nb", "SageMakerNotebookScoped")]:
+    sm.create_notebook_instance(
+        NotebookInstanceName=nb, InstanceType="ml.t3.medium", RoleArn=roles[role])
+
+sm.create_domain(
+    DomainName="acme-studio", AuthMode="IAM",
+    DefaultUserSettings={"ExecutionRole": roles["SageMakerStudioExec"]},
+    SubnetIds=["subnet-1111"], VpcId="vpc-1111")
+
+for m in ["acme-fraud-model", "acme-churn-model"]:
+    sm.create_model(
+        ModelName=m, ExecutionRoleArn=roles["SageMakerModelExec"],
+        PrimaryContainer={"Image": "%s.dkr.ecr.us-east-1.amazonaws.com/models:1" % ACCOUNT})
+
+sm.create_pipeline(
+    PipelineName="acme-training-pipeline", RoleArn=roles["SageMakerPipelineExec"],
+    PipelineDefinition='{"Version":"2020-12-01","Steps":[]}')
+
+# A user profile overrides the domain default, and moto 500s on these too.
+domain_id = sm.list_domains()["Domains"][0]["DomainId"]
+sm_proxy = client("sagemaker", endpoint=PROXY_ENDPOINT)
+sm_proxy.create_user_profile(
+    DomainId=domain_id, UserProfileName="analyst",
+    UserSettings={"ExecutionRole": roles["SageMakerNotebookAdmin"]})
+
+print("sagemaker: 2 notebooks, 1 studio domain, 1 user profile, 2 models, 1 pipeline")
