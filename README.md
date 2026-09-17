@@ -59,6 +59,7 @@ IAMhounddog identifies relationships across:
     - Glue
 - Cognito identity pools
 - S3 buckets and bucket policies
+- IaC bucket paths
 
 ## AI Usage
 
