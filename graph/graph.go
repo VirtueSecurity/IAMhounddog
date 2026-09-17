@@ -1,5 +1,7 @@
 package graph
 
+import "slices"
+
 type Node struct {
 	ID         string                 `json:"id"`
 	Kinds      []string               `json:"kinds"`
@@ -23,25 +25,63 @@ type Graph struct {
 }
 
 type Output struct {
-	Graph Graph `json:"graph"`
+	Graph Graph          `json:"graph"`
+	index map[string]int `json:"-"`
 }
 
-func AddNode(out *Output, id string, kinds []string, props map[string]interface{}) {
+func AddNode(out *Output, id string, kinds []string, props map[string]interface{}) bool {
+	if out.index == nil {
+		out.index = make(map[string]int)
+	}
+
+	if i, seen := out.index[id]; seen {
+		// merge kinds and properties when node already exists
+		n := &out.Graph.Nodes[i]
+
+		for _, k := range kinds {
+			if !slices.Contains(n.Kinds, k) {
+				n.Kinds = append(n.Kinds, k)
+			}
+		}
+
+		if len(props) > 0 {
+			if n.Properties == nil {
+				n.Properties = make(map[string]interface{}, len(props))
+			}
+
+			for k, v := range props {
+				if existing, ok := n.Properties[k]; ok && existing != nil && existing != "" {
+					continue
+				}
+				n.Properties[k] = v
+			}
+		}
+
+		return false
+	}
+
 	out.Graph.Nodes = append(out.Graph.Nodes, Node{
 		ID:         id,
 		Kinds:      kinds,
 		Properties: props,
 	})
+	out.index[id] = len(out.Graph.Nodes) - 1
+	return true
 }
 
-func AddNodeOnce(out *Output, set map[string]bool, id string, kinds []string, props map[string]interface{}) {
-	if set[id] {
-		return
+func HasAnyKind(out *Output, id string, kinds ...string) bool {
+	i, seen := out.index[id]
+	if !seen {
+		return false
 	}
 
-	AddNode(out, id, kinds, props)
+	for _, want := range kinds {
+		if slices.Contains(out.Graph.Nodes[i].Kinds, want) {
+			return true
+		}
+	}
 
-	set[id] = true
+	return false
 }
 
 func AddEdge(out *Output, kind, start, end string, props map[string]interface{}) {

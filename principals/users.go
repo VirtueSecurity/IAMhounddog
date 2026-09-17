@@ -5,17 +5,19 @@ import (
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
 	"github.com/VirtueSecurity/IAMhounddog/policies"
+	"github.com/VirtueSecurity/IAMhounddog/report"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 )
 
-func EnumerateUsers(ctx context.Context, client *iam.Client, out *graph.Output, addedPolicyNodes, addedResourceNodes map[string]bool, passRoleEdges map[string]map[string]bool) {
+func EnumerateUsers(ctx context.Context, client *iam.Client, out *graph.Output, policyDocs map[string]string, passRoleEdges map[string]map[string]bool) {
 	userPaginator := iam.NewListUsersPaginator(client, &iam.ListUsersInput{})
 	for userPaginator.HasMorePages() {
 		userPage, err := userPaginator.NextPage(ctx)
 		if err != nil {
-			panic(err)
+			report.Warn("iam", "ListUsers", "", err)
+			break
 		}
 		for _, user := range userPage.Users {
 			userID := aws.ToString(user.Arn)
@@ -37,26 +39,10 @@ func EnumerateUsers(ctx context.Context, client *iam.Client, out *graph.Output, 
 			for aup.HasMorePages() {
 				pg, err := aup.NextPage(ctx)
 				if err != nil {
-					panic(err)
+					report.Warn("iam", "ListAttachedUserPolicies", "", err)
+					break
 				}
-				for _, mp := range pg.AttachedPolicies {
-					pArn := aws.ToString(mp.PolicyArn)
-					pName := aws.ToString(mp.PolicyName)
-
-					pd, err := client.GetPolicy(ctx, &iam.GetPolicyInput{PolicyArn: &pArn})
-					if err != nil || pd.Policy == nil || pd.Policy.DefaultVersionId == nil {
-						continue
-					}
-					ver, err := client.GetPolicyVersion(ctx, &iam.GetPolicyVersionInput{
-						PolicyArn: &pArn,
-						VersionId: pd.Policy.DefaultVersionId,
-					})
-					if err != nil || ver.PolicyVersion == nil || ver.PolicyVersion.Document == nil {
-						continue
-					}
-
-					policies.AttachPolicy(out, addedPolicyNodes, addedResourceNodes, passRoleEdges, userID, pArn, pName, aws.ToString(ver.PolicyVersion.Document))
-				}
+				attachManagedPolicies(ctx, client, out, policyDocs, passRoleEdges, userID, pg.AttachedPolicies)
 			}
 
 			// Inline policies on user
@@ -66,7 +52,8 @@ func EnumerateUsers(ctx context.Context, client *iam.Client, out *graph.Output, 
 			for lup.HasMorePages() {
 				pg, err := lup.NextPage(ctx)
 				if err != nil {
-					panic(err)
+					report.Warn("iam", "ListUserPolicies", "", err)
+					break
 				}
 				for _, pn := range pg.PolicyNames {
 					gup, err := client.GetUserPolicy(ctx, &iam.GetUserPolicyInput{
@@ -74,10 +61,11 @@ func EnumerateUsers(ctx context.Context, client *iam.Client, out *graph.Output, 
 						PolicyName: aws.String(pn),
 					})
 					if err != nil {
+						report.Warn("iam", "GetUserPolicy", "", err)
 						continue
 					}
 					inlineID := aws.ToString(user.Arn) + ":inline/" + pn
-					policies.AttachPolicy(out, addedPolicyNodes, addedResourceNodes, passRoleEdges, userID, inlineID, pn, aws.ToString(gup.PolicyDocument))
+					policies.AttachPolicy(out, passRoleEdges, userID, inlineID, pn, aws.ToString(gup.PolicyDocument))
 				}
 			}
 
@@ -88,7 +76,8 @@ func EnumerateUsers(ctx context.Context, client *iam.Client, out *graph.Output, 
 			for gfu.HasMorePages() {
 				pg, err := gfu.NextPage(ctx)
 				if err != nil {
-					panic(err)
+					report.Warn("iam", "ListGroupsForUser", "", err)
+					break
 				}
 				for _, g := range pg.Groups {
 					graph.AddEdge(out, "awsMemberOf", userID, aws.ToString(g.Arn),

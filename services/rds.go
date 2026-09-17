@@ -7,10 +7,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
+	"github.com/VirtueSecurity/IAMhounddog/report"
 )
 
-func EnumerateRDSRoles(ctx context.Context, cfg aws.Config, out *graph.Output, addedResourceNodes map[string]bool, regions []string) {
-	graph.AddNodeOnce(out, addedResourceNodes, "rds", []string{"AWSResource"}, map[string]interface{}{"name": "rds"})
+func EnumerateRDSRoles(ctx context.Context, cfg aws.Config, out *graph.Output, regions []string) {
+	graph.AddNode(out, "rds", []string{"AWSResource"}, map[string]interface{}{"name": "rds"})
 
 	for _, region := range regions {
 		rdsconfig := rds.NewFromConfig(cfg, func(o *rds.Options) { o.Region = region })
@@ -19,6 +20,7 @@ func EnumerateRDSRoles(ctx context.Context, cfg aws.Config, out *graph.Output, a
 		for instPager.HasMorePages() {
 			page, err := instPager.NextPage(ctx)
 			if err != nil {
+				report.Warn("rds", "DescribeDBInstances", region, err)
 				break
 			}
 			for _, inst := range page.DBInstances {
@@ -56,6 +58,7 @@ func EnumerateRDSRoles(ctx context.Context, cfg aws.Config, out *graph.Output, a
 		for clPager.HasMorePages() {
 			page, err := clPager.NextPage(ctx)
 			if err != nil {
+				report.Warn("rds", "DescribeDBClusters", region, err)
 				break
 			}
 			for _, cl := range page.DBClusters {

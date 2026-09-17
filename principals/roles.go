@@ -5,20 +5,33 @@ import (
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
 	"github.com/VirtueSecurity/IAMhounddog/policies"
+	"github.com/VirtueSecurity/IAMhounddog/report"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
+	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 )
 
-func EnumerateRoles(ctx context.Context, client *iam.Client, out *graph.Output, addedPolicyNodes, addedResourceNodes map[string]bool, passRoleEdges map[string]map[string]bool) {
+func EnumerateRoles(ctx context.Context, client *iam.Client, out *graph.Output, policyDocs map[string]string, passRoleEdges map[string]map[string]bool) []iamtypes.Role {
+	var roles []iamtypes.Role
+
 	rolePaginator := iam.NewListRolesPaginator(client, &iam.ListRolesInput{})
 	for rolePaginator.HasMorePages() {
 		rolePage, err := rolePaginator.NextPage(ctx)
 		if err != nil {
-			panic(err)
+			report.Warn("iam", "ListRoles", "", err)
+			break
 		}
 		for _, role := range rolePage.Roles {
+			roles = append(roles, role)
+
 			roleID := aws.ToString(role.Arn)
+			trustPolicy := ""
+			if role.AssumeRolePolicyDocument != nil && *role.AssumeRolePolicyDocument != "" {
+				if decoded, err := policies.DecodePolicyDocument(*role.AssumeRolePolicyDocument); err == nil {
+					trustPolicy = decoded
+				}
+			}
 			graph.AddNode(
 				out,
 				roleID,
@@ -27,6 +40,7 @@ func EnumerateRoles(ctx context.Context, client *iam.Client, out *graph.Output, 
 					"name":        aws.ToString(role.RoleName),
 					"arn":         aws.ToString(role.Arn),
 					"displayname": aws.ToString(role.RoleName),
+					"trustPolicy": trustPolicy,
 				},
 			)
 
@@ -37,26 +51,10 @@ func EnumerateRoles(ctx context.Context, client *iam.Client, out *graph.Output, 
 			for mpPaginator.HasMorePages() {
 				mpPage, err := mpPaginator.NextPage(ctx)
 				if err != nil {
-					panic(err)
+					report.Warn("iam", "ListAttachedRolePolicies", "", err)
+					break
 				}
-				for _, mp := range mpPage.AttachedPolicies {
-					pArn := aws.ToString(mp.PolicyArn)
-					pName := aws.ToString(mp.PolicyName)
-
-					pd, err := client.GetPolicy(ctx, &iam.GetPolicyInput{PolicyArn: &pArn})
-					if err != nil || pd.Policy == nil || pd.Policy.DefaultVersionId == nil {
-						continue
-					}
-					ver, err := client.GetPolicyVersion(ctx, &iam.GetPolicyVersionInput{
-						PolicyArn: &pArn,
-						VersionId: pd.Policy.DefaultVersionId,
-					})
-					if err != nil || ver.PolicyVersion == nil || ver.PolicyVersion.Document == nil {
-						continue
-					}
-
-					policies.AttachPolicy(out, addedPolicyNodes, addedResourceNodes, passRoleEdges, roleID, pArn, pName, aws.ToString(ver.PolicyVersion.Document))
-				}
+				attachManagedPolicies(ctx, client, out, policyDocs, passRoleEdges, roleID, mpPage.AttachedPolicies)
 			}
 
 			// Inline policies on role
@@ -66,7 +64,8 @@ func EnumerateRoles(ctx context.Context, client *iam.Client, out *graph.Output, 
 			for rpPaginator.HasMorePages() {
 				rpPage, err := rpPaginator.NextPage(ctx)
 				if err != nil {
-					panic(err)
+					report.Warn("iam", "ListRolePolicies", "", err)
+					break
 				}
 				for _, pn := range rpPage.PolicyNames {
 					gpr, err := client.GetRolePolicy(ctx, &iam.GetRolePolicyInput{
@@ -74,12 +73,15 @@ func EnumerateRoles(ctx context.Context, client *iam.Client, out *graph.Output, 
 						PolicyName: aws.String(pn),
 					})
 					if err != nil {
+						report.Warn("iam", "GetRolePolicy", "", err)
 						continue
 					}
 					inlineID := aws.ToString(role.Arn) + ":inline/" + pn
-					policies.AttachPolicy(out, addedPolicyNodes, addedResourceNodes, passRoleEdges, roleID, inlineID, pn, aws.ToString(gpr.PolicyDocument))
+					policies.AttachPolicy(out, passRoleEdges, roleID, inlineID, pn, aws.ToString(gpr.PolicyDocument))
 				}
 			}
 		}
 	}
+
+	return roles
 }

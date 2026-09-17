@@ -7,10 +7,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
+	"github.com/VirtueSecurity/IAMhounddog/report"
 )
 
-func EnumerateStepFunctionRoles(ctx context.Context, cfg aws.Config, out *graph.Output, addedResourceNodes map[string]bool, regions []string) {
-	graph.AddNodeOnce(out, addedResourceNodes, "states", []string{"AWSResource"}, map[string]interface{}{"name": "states"})
+func EnumerateStepFunctionRoles(ctx context.Context, cfg aws.Config, out *graph.Output, regions []string) {
+	graph.AddNode(out, "states", []string{"AWSResource"}, map[string]interface{}{"name": "states"})
 
 	for _, region := range regions {
 		sfconfig := sfn.NewFromConfig(cfg, func(o *sfn.Options) { o.Region = region })
@@ -19,13 +20,18 @@ func EnumerateStepFunctionRoles(ctx context.Context, cfg aws.Config, out *graph.
 		for pager.HasMorePages() {
 			page, err := pager.NextPage(ctx)
 			if err != nil {
+				report.Warn("states", "ListStateMachines", region, err)
 				break
 			}
 			for _, sm := range page.StateMachines {
 				desc, err := sfconfig.DescribeStateMachine(ctx, &sfn.DescribeStateMachineInput{
 					StateMachineArn: sm.StateMachineArn,
 				})
-				if err != nil || desc == nil {
+				if err != nil {
+					report.Warn("states", "DescribeStateMachine", region, err)
+					continue
+				}
+				if desc == nil {
 					continue
 				}
 

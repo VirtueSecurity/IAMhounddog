@@ -3,15 +3,17 @@ package policies
 import (
 	"bytes"
 	"encoding/json"
-	"net/url"
 	"strings"
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
 )
 
 func isAssumeRoleAction(a string) bool {
-	a = strings.ToLower(a)
-	return a == "sts:assumerole" || a == "sts:assumerolewithsaml" || a == "sts:assumerolewithwebidentity"
+	match := ResourceMatcher(strings.ToLower(strings.TrimSpace(a)))
+
+	return match("sts:assumerole") ||
+		match("sts:assumerolewithsaml") ||
+		match("sts:assumerolewithwebidentity")
 }
 
 func collectActions(val interface{}) []string {
@@ -29,30 +31,6 @@ func collectActions(val interface{}) []string {
 	return out
 }
 
-func collectPrincipalStrings(v interface{}) []string {
-	var out []string
-	switch t := v.(type) {
-	case string:
-		out = []string{t}
-	case []interface{}:
-		for _, x := range t {
-			if s, ok := x.(string); ok {
-				out = append(out, s)
-			}
-		}
-	}
-	return out
-}
-
-func graphHasRole(out *graph.Output, id string) bool {
-	for _, n := range out.Graph.Nodes {
-		if n.ID == id {
-			return true
-		}
-	}
-	return false
-}
-
 func prettyJSON(raw json.RawMessage) string {
 	if len(raw) == 0 {
 		return ""
@@ -64,11 +42,11 @@ func prettyJSON(raw json.RawMessage) string {
 	return buf.String()
 }
 
-func AttachTrustRelationships(out *graph.Output, addedPrincipalNodes map[string]bool, roleID string, encodedDoc *string) {
+func AttachTrustRelationships(out *graph.Output, roleID string, encodedDoc *string) {
 	if encodedDoc == nil || *encodedDoc == "" {
 		return
 	}
-	docStr, err := url.QueryUnescape(*encodedDoc)
+	docStr, err := DecodePolicyDocument(*encodedDoc)
 	if err != nil {
 		return
 	}
@@ -92,37 +70,29 @@ func AttachTrustRelationships(out *graph.Output, addedPrincipalNodes map[string]
 			continue
 		}
 
-		switch v := st.Principal.(type) {
-		case map[string]interface{}:
-			for ptype, raw := range v {
-				var pvals []string
-				switch strings.ToLower(ptype) {
-				case "aws", "service", "federated":
-					pvals = collectPrincipalStrings(raw)
-				default:
-					continue
-				}
-				for _, val := range pvals {
-					if graphHasRole(out, val) {
-						graph.AddEdge(out, "awsAssumeRoleAllowed", val, roleID,
-							map[string]interface{}{
-								"name": "awsAssumeRoleAllowed",
-							})
-					} else {
-						id := "principal:" + strings.ToLower(ptype) + ":" + val
-						graph.AddNodeOnce(out, addedPrincipalNodes, id, []string{"AWSPrincipal"}, map[string]interface{}{
-							"type": ptype,
-							"name": val,
-						})
-
-						graph.AddEdge(out, "awsAssumeRoleAllowed", id, roleID,
-							map[string]interface{}{
-								"name":      "awsAssumeRoleAllowed",
-								"condition": prettyJSON(st.Condition),
-							})
-					}
-				}
+		for _, p := range collectTypedPrincipals(st.Principal) {
+			switch strings.ToLower(p.ptype) {
+			case "aws", "service", "federated":
+			default:
+				continue
 			}
+
+			start := p.value
+
+			if !graph.HasAnyKind(out, p.value, "AWSRole", "AWSUser") {
+				start = principalNodeID(p.ptype, p.value)
+
+				graph.AddNode(out, start, []string{"AWSPrincipal"}, map[string]interface{}{
+					"type": p.ptype,
+					"name": p.value,
+				})
+			}
+
+			graph.AddEdge(out, "awsAssumeRoleAllowed", start, roleID,
+				map[string]interface{}{
+					"name":      "awsAssumeRoleAllowed",
+					"condition": prettyJSON(st.Condition),
+				})
 		}
 	}
 }

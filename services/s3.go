@@ -2,21 +2,139 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
 	"github.com/VirtueSecurity/IAMhounddog/policies"
+	"github.com/VirtueSecurity/IAMhounddog/report"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
-func EnumerateS3Buckets(ctx context.Context, cfg aws.Config, out *graph.Output, addedResourceNodes map[string]bool, addedPrincipalNodes map[string]bool, regions []string) {
-	graph.AddNodeOnce(out, addedResourceNodes, "s3", []string{"AWSResource"}, map[string]interface{}{"name": "s3"})
+type s3ClientCache struct {
+	cfg     aws.Config
+	clients map[string]*s3.Client
+}
 
-	s3config := s3.NewFromConfig(cfg, func(o *s3.Options) { o.Region = regions[0] })
+func (c *s3ClientCache) get(region string) *s3.Client {
+	if client, ok := c.clients[region]; ok {
+		return client
+	}
 
-	buckets, err := s3config.ListBuckets(ctx, &s3.ListBucketsInput{})
+	client := s3.NewFromConfig(c.cfg, func(o *s3.Options) { o.Region = region })
+	c.clients[region] = client
+	return client
+}
+
+func bucketRegion(ctx context.Context, cache *s3ClientCache, b s3types.Bucket, fallback string) string {
+	if region := aws.ToString(b.BucketRegion); region != "" {
+		return region
+	}
+
+	loc, err := cache.get("us-east-1").GetBucketLocation(ctx, &s3.GetBucketLocationInput{
+		Bucket: b.Name,
+	})
 	if err != nil {
+		report.Warn("s3", "GetBucketLocation", "", err)
+		return fallback
+	}
+
+	switch loc.LocationConstraint {
+	case "":
+		return "us-east-1"
+	case "EU":
+		return "eu-west-1"
+	default:
+		return string(loc.LocationConstraint)
+	}
+}
+
+type iacBucket struct {
+	tool    string
+	content string
+	hub     string
+	edge    string
+	match   func(name string) bool
+}
+
+var iacBuckets = []iacBucket{
+	{
+		tool:    "terraform",
+		content: "state",
+		match: func(n string) bool {
+			return strings.Contains(n, "tfstate") ||
+				strings.Contains(n, "tf-state") ||
+				strings.Contains(n, "terraform-state") ||
+				strings.Contains(n, "terraformstate")
+		},
+	},
+	{
+		tool:    "cdk",
+		content: "assets",
+		match: func(n string) bool {
+			return (strings.HasPrefix(n, "cdk-") && strings.Contains(n, "-assets-")) ||
+				strings.Contains(n, "cdktoolkit-stagingbucket")
+		},
+	},
+	{
+		tool:    "cloudformation",
+		content: "templates",
+		hub:     "cloudformation",
+		edge:    "awsCloudFormationTemplateBucket",
+		match: func(n string) bool {
+			return strings.HasPrefix(n, "cf-templates-")
+		},
+	},
+}
+
+func classifyIaCBucket(bucketName string) *iacBucket {
+	lower := strings.ToLower(bucketName)
+
+	for i := range iacBuckets {
+		if iacBuckets[i].match(lower) {
+			return &iacBuckets[i]
+		}
+	}
+
+	return nil
+}
+
+func addBucketNode(out *graph.Output, bucketArn, bucketName string, extra map[string]interface{}) *iacBucket {
+	props := map[string]interface{}{
+		"name": bucketName,
+		"arn":  bucketArn,
+	}
+
+	for k, v := range extra {
+		props[k] = v
+	}
+
+	iac := classifyIaCBucket(bucketName)
+	if iac != nil {
+		props["iacTool"] = iac.tool
+		props["iacContent"] = iac.content
+	}
+
+	graph.AddNode(out, bucketArn, []string{"AWSResource"}, props)
+
+	return iac
+}
+
+func EnumerateS3Buckets(ctx context.Context, cfg aws.Config, out *graph.Output, regions []string) {
+	if len(regions) == 0 {
+		return
+	}
+
+	graph.AddNode(out, "s3", []string{"AWSResource"}, map[string]interface{}{"name": "s3"})
+
+	cache := &s3ClientCache{cfg: cfg, clients: make(map[string]*s3.Client)}
+	baseRegion := regions[0]
+
+	buckets, err := cache.get(baseRegion).ListBuckets(ctx, &s3.ListBucketsInput{})
+	if err != nil {
+		report.Warn("s3", "ListBuckets", baseRegion, err)
 		return
 	}
 
@@ -25,34 +143,48 @@ func EnumerateS3Buckets(ctx context.Context, cfg aws.Config, out *graph.Output, 
 		if bucketName == "" {
 			continue
 		}
+
 		bucketArn := aws.ToString(b.BucketArn)
 		if bucketArn == "" {
-			continue
+			bucketArn = fmt.Sprintf("arn:aws:s3:::%s", bucketName)
 		}
 
-		graph.AddNodeOnce(out, addedResourceNodes, bucketArn, []string{"AWSResource"}, map[string]interface{}{
-			"name": bucketName,
-			"arn":  bucketArn,
-		})
+		region := bucketRegion(ctx, cache, b, baseRegion)
+
+		iac := addBucketNode(out, bucketArn, bucketName, map[string]interface{}{"region": region})
 
 		graph.AddEdge(out, "awsS3Bucket", "s3", bucketArn, map[string]interface{}{
 			"name":   "awsS3Bucket",
 			"bucket": bucketName,
+			"region": region,
 		})
 
-		if strings.Contains(bucketName, "-tf-state") {
-			graph.AddEdge(out, "awsCloudFormationS3Bucket", "cloudformation", bucketArn, map[string]interface{}{
-				"name": "awsCloudFormationS3Bucket",
+		if iac != nil && iac.hub != "" {
+			graph.AddNode(out, iac.hub, []string{"AWSResource"}, map[string]interface{}{
+				"name": iac.hub,
+			})
+
+			graph.AddEdge(out, iac.edge, iac.hub, bucketArn, map[string]interface{}{
+				"name":   iac.edge,
+				"bucket": bucketName,
+				"region": region,
 			})
 		}
 
-		policy, err := s3config.GetBucketPolicy(ctx, &s3.GetBucketPolicyInput{
+		policy, err := cache.get(region).GetBucketPolicy(ctx, &s3.GetBucketPolicyInput{
 			Bucket: aws.String(bucketName),
 		})
-		if err != nil || policy.Policy == nil {
+		if err != nil {
+			// A bucket with no policy attached is normal, not a failure.
+			if report.ErrorCode(err) != "NoSuchBucketPolicy" {
+				report.Warn("s3", "GetBucketPolicy", region, err)
+			}
+			continue
+		}
+		if policy.Policy == nil {
 			continue
 		}
 
-		policies.ParseS3PolicyDoc(out, addedPrincipalNodes, bucketArn, aws.ToString(policy.Policy))
+		policies.ParseS3PolicyDoc(out, bucketArn, aws.ToString(policy.Policy))
 	}
 }

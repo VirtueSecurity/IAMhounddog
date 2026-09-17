@@ -9,9 +9,10 @@ import (
 	cpTypes "github.com/aws/aws-sdk-go-v2/service/codepipeline/types"
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
+	"github.com/VirtueSecurity/IAMhounddog/report"
 )
 
-func addCodePipelineArtifactStoreEdges(out *graph.Output, addedResourceNodes map[string]bool, store *cpTypes.ArtifactStore, pipelineName string) {
+func addCodePipelineArtifactStoreEdges(out *graph.Output, store *cpTypes.ArtifactStore, pipelineName string) {
 	if store == nil {
 		return
 	}
@@ -27,9 +28,7 @@ func addCodePipelineArtifactStoreEdges(out *graph.Output, addedResourceNodes map
 
 	bucketArn := fmt.Sprintf("arn:aws:s3:::%s", bucketName)
 
-	graph.AddNodeOnce(out, addedResourceNodes, bucketArn, []string{"AWSResource"}, map[string]interface{}{
-		"name":       bucketName,
-		"arn":        bucketArn,
+	addBucketNode(out, bucketArn, bucketName, map[string]interface{}{
 		"artifactOf": pipelineName,
 	})
 
@@ -41,8 +40,8 @@ func addCodePipelineArtifactStoreEdges(out *graph.Output, addedResourceNodes map
 	})
 }
 
-func EnumerateCodePipelineRoles(ctx context.Context, cfg aws.Config, out *graph.Output, addedResourceNodes map[string]bool, regions []string) {
-	graph.AddNodeOnce(out, addedResourceNodes, "codepipeline", []string{"AWSResource"}, map[string]interface{}{"name": "codepipeline"})
+func EnumerateCodePipelineRoles(ctx context.Context, cfg aws.Config, out *graph.Output, regions []string) {
+	graph.AddNode(out, "codepipeline", []string{"AWSResource"}, map[string]interface{}{"name": "codepipeline"})
 
 	for _, region := range regions {
 		cpconfig := codepipeline.NewFromConfig(cfg, func(o *codepipeline.Options) { o.Region = region })
@@ -51,6 +50,7 @@ func EnumerateCodePipelineRoles(ctx context.Context, cfg aws.Config, out *graph.
 		for pager.HasMorePages() {
 			page, err := pager.NextPage(ctx)
 			if err != nil {
+				report.Warn("codepipeline", "ListPipelines", region, err)
 				break
 			}
 			for _, summary := range page.Pipelines {
@@ -60,7 +60,11 @@ func EnumerateCodePipelineRoles(ctx context.Context, cfg aws.Config, out *graph.
 				}
 
 				pOut, err := cpconfig.GetPipeline(ctx, &codepipeline.GetPipelineInput{Name: aws.String(name)})
-				if err != nil || pOut.Pipeline == nil {
+				if err != nil {
+					report.Warn("codepipeline", "GetPipeline", region, err)
+					continue
+				}
+				if pOut.Pipeline == nil {
 					continue
 				}
 				roleArn := aws.ToString(pOut.Pipeline.RoleArn)
@@ -73,11 +77,11 @@ func EnumerateCodePipelineRoles(ctx context.Context, cfg aws.Config, out *graph.
 				}
 
 				if pOut.Pipeline.ArtifactStore != nil {
-					addCodePipelineArtifactStoreEdges(out, addedResourceNodes, pOut.Pipeline.ArtifactStore, name)
+					addCodePipelineArtifactStoreEdges(out, pOut.Pipeline.ArtifactStore, name)
 				}
 
 				for _, store := range pOut.Pipeline.ArtifactStores {
-					addCodePipelineArtifactStoreEdges(out, addedResourceNodes, &store, name)
+					addCodePipelineArtifactStoreEdges(out, &store, name)
 				}
 			}
 		}

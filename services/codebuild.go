@@ -4,12 +4,15 @@ import (
 	"context"
 
 	"github.com/VirtueSecurity/IAMhounddog/graph"
+	"github.com/VirtueSecurity/IAMhounddog/report"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/codebuild"
 )
 
-func EnumerateCodeBuildProjectRoles(ctx context.Context, cfg aws.Config, out *graph.Output, addedResourceNodes map[string]bool, regions []string) {
-	graph.AddNodeOnce(out, addedResourceNodes, "codebuild", []string{"AWSResource"}, map[string]interface{}{"name": "codebuild"})
+const batchGetProjectsMax = 100
+
+func EnumerateCodeBuildProjectRoles(ctx context.Context, cfg aws.Config, out *graph.Output, regions []string) {
+	graph.AddNode(out, "codebuild", []string{"AWSResource"}, map[string]interface{}{"name": "codebuild"})
 
 	for _, region := range regions {
 		cbconfig := codebuild.NewFromConfig(cfg, func(o *codebuild.Options) { o.Region = region })
@@ -19,32 +22,38 @@ func EnumerateCodeBuildProjectRoles(ctx context.Context, cfg aws.Config, out *gr
 		for pager.HasMorePages() {
 			page, err := pager.NextPage(ctx)
 			if err != nil {
+				report.Warn("codebuild", "ListProjects", region, err)
 				break
 			}
 			names = append(names, page.Projects...)
 		}
 
-		if len(names) == 0 {
-			continue
-		}
+		for start := 0; start < len(names); start += batchGetProjectsMax {
+			end := start + batchGetProjectsMax
+			if end > len(names) {
+				end = len(names)
+			}
 
-		bg, err := cbconfig.BatchGetProjects(ctx, &codebuild.BatchGetProjectsInput{
-			Names: names[0:],
-		})
+			bg, err := cbconfig.BatchGetProjects(ctx, &codebuild.BatchGetProjectsInput{
+				Names: names[start:end],
+			})
 
-		if err != nil {
-			continue
-		}
-		for _, proj := range bg.Projects {
-			roleArn := aws.ToString(proj.ServiceRole)
-			if roleArn == "" {
+			if err != nil {
+				report.Warn("codebuild", "BatchGetProjects", region, err)
 				continue
 			}
-			graph.AddEdge(out, "awsCodeBuildProjectRole", "codebuild", roleArn, map[string]interface{}{
-				"name":       "awsCodeBuildProjectRole",
-				"project":    aws.ToString(proj.Name),
-				"projectArn": aws.ToString(proj.Arn),
-			})
+			for _, proj := range bg.Projects {
+				roleArn := aws.ToString(proj.ServiceRole)
+				if roleArn == "" {
+					continue
+				}
+				graph.AddEdge(out, "awsCodeBuildProjectRole", "codebuild", roleArn, map[string]interface{}{
+					"name":       "awsCodeBuildProjectRole",
+					"project":    aws.ToString(proj.Name),
+					"projectArn": aws.ToString(proj.Arn),
+					"region":     region,
+				})
+			}
 		}
 	}
 }
