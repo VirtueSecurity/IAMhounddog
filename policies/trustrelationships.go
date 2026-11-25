@@ -42,6 +42,19 @@ func prettyJSON(raw json.RawMessage) string {
 	return buf.String()
 }
 
+// serviceResourceEdge describes the AWSResource node and edge kind that
+// represents an AWS service being able to instantiate (assume) a role
+type serviceResourceEdge struct {
+	resource string
+	edgeKind string
+}
+
+// serviceResourceEdges maps a lower-cased service principal to the resource
+// edge it should produce when a role trusts it.
+var serviceResourceEdges = map[string]serviceResourceEdge{
+	"braket.amazonaws.com": {resource: "braket", edgeKind: "awsBraketJobRole"},
+}
+
 func AttachTrustRelationships(out *graph.Output, roleID string, encodedDoc *string) {
 	if encodedDoc == nil || *encodedDoc == "" {
 		return
@@ -93,6 +106,21 @@ func AttachTrustRelationships(out *graph.Output, roleID string, encodedDoc *stri
 					"name":      "awsAssumeRoleAllowed",
 					"condition": prettyJSON(st.Condition),
 				})
+
+			// When a role trusts a known service principal, also link the
+			// service resource to the role
+			if strings.EqualFold(p.ptype, "service") {
+				if sre, ok := serviceResourceEdges[strings.ToLower(strings.TrimSpace(p.value))]; ok {
+					graph.AddNode(out, sre.resource, []string{"AWSResource"},
+						map[string]interface{}{"name": sre.resource})
+
+					graph.AddEdge(out, sre.edgeKind, sre.resource, roleID,
+						map[string]interface{}{
+							"name":      sre.edgeKind,
+							"condition": prettyJSON(st.Condition),
+						})
+				}
+			}
 		}
 	}
 }
