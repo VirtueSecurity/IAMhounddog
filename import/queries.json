@@ -26,7 +26,7 @@
     },
     {
         "name": "Roles Attached to Services",
-        "query": "MATCH p = (:AWSResource)-[:awsAgentCoreBrowserRole|:awsAgentCoreCodeInterpreterRole|:awsAgentCoreGatewayRole|:awsAgentCoreRuntimeRole|:awsCloudFormationStackRole|:awsCodeBuildProjectRole|:awsCodePipelineRole|:awsCognitoAuthenticatedRole|:awsCognitoMappedRole|:awsCognitoUnauthenticatedRole|:awsEc2InstanceRole|:awsGlueCrawlerRole|:awsGlueDevEndpointRole|:awsGlueJobRole|:awsEcsTaskExecutionRole|:awsEcsTaskRole|:awsEksClusterRole|:awsEksNodeRole|:awsLambdaInstanceRole|:awsRdsClusterRole|:awsRdsInstanceRole|:awsRdsMonitoringRole|:awsSageMakerDomainRole|:awsSageMakerModelRole|:awsSageMakerNotebookRole|:awsSageMakerPipelineRole|:awsSageMakerUserProfileRole|:awsStateMachineRole]->(r:AWSRole) OPTIONAL MATCH q = (r)-[:awsAttachedPolicy]->(:AWSPolicy) RETURN p, q LIMIT 1000",
+        "query": "MATCH p = (:AWSResource)-[:awsAgentCoreBrowserRole|:awsAgentCoreCodeInterpreterRole|:awsAgentCoreGatewayRole|:awsAgentCoreRuntimeRole|:awsBraketJobRole|:awsCloudFormationStackRole|:awsCodeBuildProjectRole|:awsCodePipelineRole|:awsCognitoAuthenticatedRole|:awsCognitoMappedRole|:awsCognitoUnauthenticatedRole|:awsEc2InstanceRole|:awsGlueCrawlerRole|:awsGlueDevEndpointRole|:awsGlueJobRole|:awsEcsTaskExecutionRole|:awsEcsTaskRole|:awsEksClusterRole|:awsEksNodeRole|:awsLambdaInstanceRole|:awsRdsClusterRole|:awsRdsInstanceRole|:awsRdsMonitoringRole|:awsSageMakerDomainRole|:awsSageMakerModelRole|:awsSageMakerNotebookRole|:awsSageMakerPipelineRole|:awsSageMakerUserProfileRole|:awsStateMachineRole]->(r:AWSRole) OPTIONAL MATCH q = (r)-[:awsAttachedPolicy]->(:AWSPolicy) RETURN p, q LIMIT 1000",
         "description": "Identify all roles attached to a service"
     },
     {
